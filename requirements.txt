@@ -13,8 +13,15 @@ python-binance>=1.0.19
 # Carga de variables de entorno desde archivo .env
 python-dotenv>=1.0.0
 
-# Utilidades para manejo de fechas/horas (opcional, Django lo incluye)
-# python-dateutil>=2.8.2
+# Base de datos PostgreSQL para producción
+dj-database-url>=2.0.0
+psycopg2-binary>=2.9.0
+
+# WhiteNoise para servir archivos estáticos en producción (Vercel)
+whitenoise>=6.0.0
+
+# Gunicorn para servidor WSGI en producción
+gunicorn>=21.0.0
 
 # =============================================================================
 # DEPENDENCIAS DE DESARROLLO (OPCIONALES)

@@ -1,0 +1,59 @@
+# =============================================================================
+# ARCHIVOS Y DIRECTORIOS IGNORADOS POR VERCEL
+# =============================================================================
+
+# Entornos virtuales y Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+ENV/
+
+# Django
+*.log
+local_settings.py
+db.sqlite3
+db.sqlite3-journal
+media/
+staticfiles/
+static/*
+
+# Archivos de configuración local
+.env
+.env.local
+.env.*.local
+*.pem
+
+# IDEs y editores
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Testing y cobertura
+.coverage
+htmlcov/
+.pytest_cache/
+.mypy_cache/
+.tox/
+.nox/
+
+# Build y distribución
+dist/
+build/
+*.egg-info/
+pip-wheel-metadata/
+
+# Logs
+logs/
+*.log
+
+# Archivos de desarrollo
+test_ranks.py
+*.md
+!README.md

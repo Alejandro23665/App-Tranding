@@ -6,6 +6,7 @@ de monitoreo de criptomonedas en tiempo real con integración a Binance.
 """
 
 import os
+import dj_database_url
 from pathlib import Path
 from dotenv import load_dotenv
 
@@ -31,11 +32,23 @@ SECRET_KEY = os.getenv('DJANGO_SECRET_KEY', 'django-insecure-clave-temporal-solo
 
 # Modo debug: True para desarrollo, False para producción
 # Cuando DEBUG=False, se requiere configurar ALLOWED_HOSTS correctamente
-DEBUG = os.getenv('DJANGO_DEBUG', 'True').lower() in ('true', '1', 'yes')
+DEBUG = os.getenv('DJANGO_DEBUG', 'False').lower() in ('true', '1', 'yes')
 
 # Hosts permitidos para acceder a la aplicación
 # En producción, agregar el dominio real (ej: 'midominio.com', 'www.midominio.com')
 ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', 'localhost,127.0.0.1,testserver').split(',')
+
+# Seguridad adicional para producción
+if not DEBUG:
+    SECURE_SSL_REDIRECT = True
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
+    SECURE_BROWSER_XSS_FILTER = True
+    SECURE_CONTENT_TYPE_NOSNIFF = True
+    SECURE_HSTS_SECONDS = 31536000
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+    SECURE_HSTS_PRELOAD = True
+    SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 
 # =============================================================================
 # APLICACIONES INSTALADAS
@@ -115,13 +128,14 @@ CACHES = {
 # BASE DE DATOS
 # =============================================================================
 
-# Usamos SQLite por simplicidad (archivo local)
-# En producción, considerar PostgreSQL o MySQL
+# Configuración de base de datos para producción (PostgreSQL via DATABASE_URL)
+# En desarrollo usa SQLite por simplicidad
 DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
-    }
+    'default': dj_database_url.config(
+        default=f'sqlite:///{BASE_DIR / "db.sqlite3"}',
+        conn_max_age=600,
+        conn_health_checks=True,
+    )
 }
 
 # =============================================================================
@@ -153,6 +167,11 @@ STATICFILES_DIRS = [
     BASE_DIR / 'static',  # Directorio para archivos estáticos del proyecto
 ]
 STATIC_ROOT = BASE_DIR / 'staticfiles'  # Para collectstatic en producción
+
+# WhiteNoise para servir archivos estáticos en producción (Vercel)
+if not DEBUG:
+    STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
+    MIDDLEWARE.insert(1, 'whitenoise.middleware.WhiteNoiseMiddleware')
 
 # =============================================================================
 # CONFIGURACIÓN DE AUTO FIELD POR DEFECTO
