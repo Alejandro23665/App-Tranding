@@ -1,0 +1,1151 @@
+{% load static humanize %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Monitor de criptomonedas en tiempo real con datos de Binance">
+    <title>{{ page_title|default:"Crypto Monitor — Binance Live Data" }}</title>
+
+    <!-- Tailwind CSS via CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- Tailwind Config -->
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        surface: {
+                            50: '#f8fafc',
+                            100: '#f1f5f9',
+                            800: '#1e293b',
+                            900: '#0f172a',
+                            950: '#020617',
+                        },
+                        brand: {
+                            50: '#f0fdf4',
+                            100: '#dcfce7',
+                            400: '#4ade80',
+                            500: '#22c55e',
+                            600: '#16a34a',
+                            700: '#15803d',
+                            800: '#166534',
+                            900: '#14532d',
+                        },
+                        danger: {
+                            50: '#fef2f2',
+                            100: '#fee2e2',
+                            400: '#f87171',
+                            500: '#ef4444',
+                            600: '#dc2626',
+                            700: '#b91c1c',
+                        },
+                        muted: {
+                            400: '#94a3b8',
+                            500: '#64748b',
+                            600: '#475569',
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'ui-sans-serif', 'system-ui', 'sans-serif'],
+                        mono: ['JetBrains Mono', 'ui-monospace', 'SFMono-Regular', 'monospace'],
+                    },
+                    animation: {
+                        'fade-in': 'fadeIn 0.3s ease-out',
+                        'slide-up': 'slideUp 0.4s ease-out',
+                        'slide-down': 'slideDown 0.3s ease-out',
+                        'pulse-soft': 'pulseSoft 2s ease-in-out infinite',
+                        'shimmer': 'shimmer 1.5s ease-in-out infinite',
+                    },
+                    keyframes: {
+                        fadeIn: { '0%': { opacity: '0' }, '100%': { opacity: '1' } },
+                        slideUp: { '0%': { opacity: '0', transform: 'translateY(10px)' }, '100%': { opacity: '1', transform: 'translateY(0)' } },
+                        slideDown: { '0%': { opacity: '0', transform: 'translateY(-10px)' }, '100%': { opacity: '1', transform: 'translateY(0)' } },
+                        pulseSoft: { '0%, 100%': { opacity: '1' }, '50%': { opacity: '0.6' } },
+                        shimmer: { '0%': { backgroundPosition: '-200% 0' }, '100%': { backgroundPosition: '200% 0' } },
+                    },
+                    backgroundImage: {
+                        'gradient-radial': 'radial-gradient(var(--tw-gradient-stops))',
+                        'shimmer-gradient': 'linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent)',
+                    },
+                    boxShadow: {
+                        'glow-green': '0 0 20px rgba(34, 197, 94, 0.3)',
+                        'glow-red': '0 0 20px rgba(239, 68, 68, 0.3)',
+                        'inner-glow': 'inset 0 1px 0 rgba(255,255,255,0.05)',
+                    },
+                }
+            }
+        }
+    </script>
+
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+
+    <!-- Lightweight Charts (TradingView) -->
+    <script src="https://unpkg.com/lightweight-charts@4.1.3/dist/lightweight-charts.standalone.production.js"></script>
+
+    <style>
+        /* Custom scrollbar */
+        .scrollbar-thin::-webkit-scrollbar { width: 6px; height: 6px; }
+        .scrollbar-thin::-webkit-scrollbar-track { background: #0f172a; border-radius: 3px; }
+        .scrollbar-thin::-webkit-scrollbar-thumb { background: #334155; border-radius: 3px; }
+        .scrollbar-thin::-webkit-scrollbar-thumb:hover { background: #475569; }
+
+        /* Glassmorphism */
+        .glass {
+            background: rgba(15, 23, 42, 0.7);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(148, 163, 184, 0.1);
+        }
+        .glass-strong {
+            background: rgba(15, 23, 42, 0.85);
+            backdrop-filter: blur(24px);
+            -webkit-backdrop-filter: blur(24px);
+            border: 1px solid rgba(148, 163, 184, 0.15);
+        }
+
+        /* Row hover & update animation */
+        .market-row {
+            transition: background-color 0.2s ease, transform 0.15s ease;
+        }
+        .market-row:hover {
+            background-color: rgba(148, 163, 184, 0.03);
+            transform: translateX(2px);
+        }
+        .market-row.updating {
+            animation: rowFlash 0.8s ease-out;
+        }
+        @keyframes rowFlash {
+            0% { background-color: rgba(34, 197, 94, 0.12); }
+            50% { background-color: rgba(34, 197, 94, 0.06); }
+            100% { background-color: transparent; }
+        }
+        .market-row.updating-danger {
+            animation: rowFlashDanger 0.8s ease-out;
+        }
+        @keyframes rowFlashDanger {
+            0% { background-color: rgba(239, 68, 68, 0.12); }
+            50% { background-color: rgba(239, 68, 68, 0.06); }
+            100% { background-color: transparent; }
+        }
+
+        /* Value change animations */
+        .value-up { animation: valuePulseUp 0.6s ease-out; }
+        .value-down { animation: valuePulseDown 0.6s ease-out; }
+        @keyframes valuePulseUp {
+            0% { color: #22c55e; transform: scale(1); }
+            30% { color: #4ade80; transform: scale(1.03); }
+            100% { color: #22c55e; transform: scale(1); }
+        }
+        @keyframes valuePulseDown {
+            0% { color: #ef4444; transform: scale(1); }
+            30% { color: #f87171; transform: scale(1.03); }
+            100% { color: #ef4444; transform: scale(1); }
+        }
+
+        /* Skeleton loading */
+        .skeleton {
+            background: linear-gradient(90deg, #1e293b 25%, #334155 50%, #1e293b 75%);
+            background-size: 200% 100%;
+            animation: shimmer 1.5s ease-in-out infinite;
+            border-radius: 4px;
+        }
+
+        /* Focus visible */
+        .focus-visible:focus-visible {
+            outline: 2px solid #22c55e;
+            outline-offset: 2px;
+        }
+
+        /* Reduced motion */
+        @media (prefers-reduced-motion: reduce) {
+            *, *::before, *::after {
+                animation-duration: 0.01ms !important;
+                animation-iteration-count: 1 !important;
+                transition-duration: 0.01ms !important;
+            }
+        }
+
+        /* Selection */
+        ::selection { background: rgba(34, 197, 94, 0.3); color: white; }
+
+        /* Hide scrollbar for horizontal table scroll */
+        .hide-scrollbar::-webkit-scrollbar { display: none; }
+        .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+    </style>
+</head>
+<body class="bg-surface-950 text-surface-50 font-sans antialiased min-h-screen">
+    <!-- Background ambient glow -->
+    <div class="fixed inset-0 pointer-events-none overflow-hidden" aria-hidden="true">
+        <div class="absolute top-1/4 left-1/4 w-[600px] h-[600px] rounded-full bg-brand-500/5 blur-[200px]"></div>
+        <div class="absolute bottom-1/4 right-1/4 w-[500px] h-[500px] rounded-full bg-brand-900/30 blur-[200px]"></div>
+        <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] rounded-full bg-brand-800/10 blur-[300px]"></div>
+    </div>
+
+    <!-- Navbar -->
+    <nav class="relative z-10 glass-strong border-b border-white/5 sticky top-0">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex items-center justify-between h-16 lg:h-18">
+                <!-- Brand -->
+                <div class="flex items-center gap-3">
+                    <div class="relative p-2 bg-gradient-to-br from-brand-500 to-brand-700 rounded-xl shadow-lg shadow-brand-500/20">
+                        <i class="fas fa-chart-line text-white text-xl" aria-hidden="true"></i>
+                        <!-- Pulse ring -->
+                        <span class="absolute inset-0 rounded-xl bg-brand-500/50 animate-pulse-soft" aria-hidden="true"></span>
+                    </div>
+                    <div>
+                        <h1 class="text-lg lg:text-xl font-bold tracking-tight text-white">Crypto Monitor</h1>
+                        <p class="text-xs text-muted-400 font-medium">Live data from Binance</p>
+                    </div>
+                </div>
+
+                <!-- Navigation -->
+                <div class="hidden lg:flex items-center gap-1 ml-8">
+                    <a href="{% url 'monitoring:dashboard' %}" class="px-3 py-2 text-sm font-medium text-white/70 hover:text-white hover:bg-white/5 rounded-lg transition-colors" aria-current="page">
+                        <i class="fas fa-home mr-1.5"></i> Dashboard
+                    </a>
+                    <a href="{% url 'monitoring:top_flop' %}" class="px-3 py-2 text-sm font-medium text-muted-400 hover:text-brand-400 hover:bg-brand-500/10 rounded-lg transition-colors">
+                        <i class="fas fa-trophy mr-1.5"></i> Top & Flop
+                    </a>
+                    <a href="{% url 'monitoring:ai_analysis' %}" class="px-3 py-2 text-sm font-medium text-muted-400 hover:text-purple-400 hover:bg-purple-500/10 rounded-lg transition-colors">
+                        <i class="fas fa-robot mr-1.5"></i> IA
+                    </a>
+                </div>
+
+                <!-- Search Bar (Desktop) - visible on md+ (768px+) -->
+                <div class="hidden md:flex-1 md:max-w-md mx-8">
+                    <form action="{% url 'monitoring:search' %}" method="GET" class="relative">
+                        <label for="header-search" class="sr-only">Buscar criptomoneda</label>
+                        <input
+                            type="search"
+                            id="header-search"
+                            name="q"
+                            placeholder="Buscar (ej: BTC, ETH, SOL)..."
+                            class="w-full px-4 py-2 pl-10 bg-white/5 border border-white/10 rounded-xl text-white placeholder:text-muted-500 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent transition-all"
+                            autocomplete="off"
+                            aria-label="Buscar criptomoneda por símbolo o nombre"
+                        >
+                        <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-muted-500" aria-hidden="true"></i>
+                    </form>
+                </div>
+
+                <!-- Center: Market status & time -->
+                <div class="hidden md:flex items-center gap-6 ml-auto lg:ml-0">
+                    <!-- Connection status -->
+                    <div id="connection-status" class="flex items-center gap-2 px-3 py-1.5 rounded-full glass border border-white/5">
+                        <span id="status-dot" class="w-1.5 h-1.5 rounded-full bg-brand-500 animate-pulse-soft" aria-hidden="true"></span>
+                        <span id="status-text" class="text-xs font-medium text-surface-300">Connected</span>
+                    </div>
+
+                    <!-- Live badge -->
+                    <div class="flex items-center gap-1.5 px-3 py-1.5 rounded-full glass border border-white/5">
+                        <span class="w-1.5 h-1.5 rounded-full bg-danger-500 animate-pulse" aria-hidden="true"></span>
+                        <span class="text-xs font-semibold text-white tabular-nums font-mono" id="live-time">--:--:--</span>
+                    </div>
+                </div>
+
+                <!-- Right controls -->
+                <div class="flex items-center gap-3">
+                    <!-- Auto refresh toggle -->
+                    <label class="flex items-center gap-2 cursor-pointer group">
+                        <input type="checkbox" id="auto-refresh" class="sr-only peer" checked>
+                        <div class="relative w-11 h-6 bg-muted-600 peer-checked:bg-brand-500 rounded-full transition-colors duration-200 peer-focus-visible:ring-2 peer-focus-visible:ring-brand-500 peer-focus-visible:ring-offset-2 peer-focus-visible:ring-offset-surface-950"></div>
+                        <div class="absolute w-5 h-5 bg-white rounded-full shadow-lg transition-transform duration-200 peer-checked:translate-x-5 peer-checked:shadow-brand-500/30" aria-hidden="true"></div>
+                        <span class="text-xs font-medium text-muted-400 peer-checked:text-brand-400 transition-colors hidden sm:block">Auto</span>
+                    </label>
+
+                    <!-- Refresh button -->
+                    <button id="refresh-btn" type="button" class="group relative px-4 py-2 bg-white/5 hover:bg-white/10 text-white font-medium text-sm rounded-xl transition-all duration-200 flex items-center gap-2 border border-white/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 focus-visible:ring-offset-surface-950">
+                        <i class="fas fa-sync-alt text-base transition-transform duration-300 group-hover:rotate-90" id="refresh-icon" aria-hidden="true"></i>
+                        <span>Refresh</span>
+                        <span class="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity rounded-xl" aria-hidden="true"></span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Mobile Search Bar (shown below nav on mobile) -->
+    <div class="md:hidden px-4 py-3 border-b border-white/5 bg-surface-950/80 backdrop-blur-sm sticky top-16 z-40">
+        <form action="{% url 'monitoring:search' %}" method="GET" class="relative max-w-md mx-auto">
+            <label for="mobile-search" class="sr-only">Buscar criptomoneda</label>
+            <input
+                type="search"
+                id="mobile-search"
+                name="q"
+                placeholder="Buscar criptomoneda (ej: BTC, ETH, SOL)..."
+                class="w-full px-4 py-2 pl-10 bg-white/5 border border-white/10 rounded-xl text-white placeholder:text-muted-500 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent transition-all"
+                autocomplete="off"
+                aria-label="Buscar criptomoneda por símbolo o nombre"
+            >
+            <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-muted-500" aria-hidden="true"></i>
+        </form>
+    </div>
+
+    <!-- Main Content -->
+    <main class="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 lg:py-8">
+        <!-- Search Section (Prominent at top of dashboard) -->
+        <section class="mb-8 animate-slide-down">
+            <form action="{% url 'monitoring:search' %}" method="GET" class="glass-strong rounded-2xl p-4 sm:p-6 border border-white/5 max-w-2xl mx-auto">
+                <div class="flex flex-col sm:flex-row gap-3">
+                    <label for="dashboard-search" class="sr-only">Buscar criptomoneda</label>
+                    <div class="relative flex-1">
+                        <input
+                            type="search"
+                            id="dashboard-search"
+                            name="q"
+                            placeholder="Buscar cualquier criptomoneda (ej: BTC, ETH, SOL, DOGE)..."
+                            class="w-full px-5 py-3.5 pl-12 bg-white/5 border border-white/10 rounded-xl text-white placeholder:text-muted-500 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent transition-all text-base"
+                            autocomplete="off"
+                            aria-label="Buscar criptomoneda por símbolo o nombre"
+                        >
+                        <i class="fas fa-search absolute left-4 top-1/2 -translate-y-1/2 text-muted-400 text-xl" aria-hidden="true"></i>
+                    </div>
+                    <button type="submit" class="px-6 py-3.5 bg-gradient-to-r from-brand-500 to-brand-600 hover:from-brand-600 hover:to-brand-700 text-white font-semibold rounded-xl transition-all duration-200 flex items-center gap-2 shadow-lg shadow-brand-500/25 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 focus-visible:ring-offset-surface-950">
+                        <i class="fas fa-search"></i>
+                        <span>Analizar</span>
+                    </button>
+                </div>
+                <p class="text-xs text-muted-500 mt-3 text-center">Analiza 500+ pares USDT de Binance • Rankings de performance, volatilidad y volumen</p>
+            </form>
+        </section>
+
+        <!-- Header Section -->
+        <header class="mb-8 animate-slide-down">
+            <div class="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
+                <div>
+                    <h2 class="text-2xl lg:text-3xl font-bold tracking-tight text-white">Market Overview</h2>
+                    <p class="mt-1 text-sm text-muted-400">{{ symbols_count|default:"--" }} pairs tracked • Updates every 30s</p>
+                </div>
+                <div class="flex items-center gap-3">
+                    <a href="{% url 'monitoring:api_ticker' %}" target="_blank" rel="noopener" class="px-3 py-2 text-xs font-medium text-muted-400 hover:text-brand-400 transition-colors glass rounded-lg border border-white/5 hover:border-brand-500/20 flex items-center gap-1.5">
+                        <i class="fas fa-code text-xs"></i>
+                        <span>API JSON</span>
+                    </a>
+                </div>
+            </div>
+        </header>
+
+        <!-- Summary Cards (Top 5 by Volume) -->
+        <section id="summary-section" class="mb-8 animate-slide-up" style="animation-delay: 0.1s;">
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 lg:gap-4" id="summary-cards" role="list" aria-label="Top markets by volume">
+                <!-- Populated by JS -->
+            </div>
+        </section>
+
+        <!-- Data Table -->
+        <section class="animate-slide-up" style="animation-delay: 0.2s;">
+            <div class="glass-strong rounded-2xl overflow-hidden">
+                <!-- Table Header -->
+                <div class="px-5 py-4 border-b border-white/5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                    <div class="flex items-center gap-3">
+                        <div class="p-2 bg-brand-500/10 rounded-xl text-brand-400">
+                            <i class="fas fa-table text-lg" aria-hidden="true"></i>
+                        </div>
+                        <div>
+                            <h3 class="font-semibold text-white">Spot Markets (USDT)</h3>
+                            <p class="text-xs text-muted-500">Real-time 24h ticker data</p>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-3">
+                        <span class="text-xs text-muted-500 hidden sm:block" id="last-update-label">Last update: <span id="last-update-time">--:--:--</span></span>
+                    </div>
+                </div>
+
+                <!-- Table -->
+                <div class="overflow-x-auto hide-scrollbar">
+                    <table class="w-full" role="table" aria-label="Cryptocurrency market data">
+                        <thead>
+                            <tr class="border-b border-white/5 bg-surface-900/50">
+                                <th class="px-4 py-3.5 text-left text-xs font-semibold text-muted-500 uppercase tracking-wider">Pair</th>
+                                <th class="px-4 py-3.5 text-right text-xs font-semibold text-muted-500 uppercase tracking-wider tabular-nums font-mono">Price</th>
+                                <th class="px-4 py-3.5 text-right text-xs font-semibold text-muted-500 uppercase tracking-wider tabular-nums font-mono">24h Change</th>
+                                <th class="px-4 py-3.5 text-right text-xs font-semibold text-muted-500 uppercase tracking-wider tabular-nums font-mono hidden lg:table-cell">24h High</th>
+                                <th class="px-4 py-3.5 text-right text-xs font-semibold text-muted-500 uppercase tracking-wider tabular-nums font-mono hidden lg:table-cell">24h Low</th>
+                                <th class="px-4 py-3.5 text-right text-xs font-semibold text-muted-500 uppercase tracking-wider tabular-nums font-mono">Volume (24h)</th>
+                                <th class="px-4 py-3.5 text-right text-xs font-semibold text-muted-500 uppercase tracking-wider tabular-nums font-mono hidden xl:table-cell">Quote Vol.</th>
+                                <th class="px-4 py-3.5 text-right text-xs font-semibold text-muted-500 uppercase tracking-wider tabular-nums font-mono hidden xl:table-cell">Trades</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-white/5" id="market-tbody">
+                            {% for item in market_data %}
+                            <tr class="market-row" data-symbol="{{ item.symbol }}">
+                                <td class="px-4 py-3.5">
+                                    <div class="flex items-center gap-3">
+                                        <!-- Asset badge -->
+                                        <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-surface-800 to-surface-900 border border-white/5 flex items-center justify-center text-xs font-bold text-brand-400 shadow-inner">
+                                            {{ item.base_asset|slice:":3" }}
+                                        </div>
+                                        <div class="min-w-0">
+                                            <p class="font-medium text-white truncate">{{ item.base_asset }}</p>
+                                            <p class="text-xs text-muted-500">{{ item.quote_asset }}</p>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td class="px-4 py-3.5 text-right font-mono text-sm text-white price-cell" data-field="last_price" data-symbol="{{ item.symbol }}">
+                                    {{ item.last_price|floatformat:8 }}
+                                </td>
+                                <td class="px-4 py-3.5 text-right font-mono text-sm change-cell" data-field="price_change_percent" data-symbol="{{ item.symbol }}">
+                                    <span class="inline-flex items-center gap-1 px-2 py-1 rounded-lg {% if item.price_change_percent >= 0 %}bg-brand-500/10 text-brand-400{% else %}bg-danger-500/10 text-danger-400{% endif %}">
+                                        <i class="fas fa-caret-up text-xs {% if item.price_change_percent < 0 %}rotate-180{% endif %}" aria-hidden="true"></i>
+                                        <span>{% if item.price_change_percent >= 0 %}+{% endif %}{{ item.price_change_percent|floatformat:2 }}%</span>
+                                    </span>
+                                </td>
+                                <td class="px-4 py-3.5 text-right font-mono text-sm text-muted-400 hidden lg:table-cell" data-field="high_price">
+                                    {{ item.high_price|floatformat:8 }}
+                                </td>
+                                <td class="px-4 py-3.5 text-right font-mono text-sm text-muted-400 hidden lg:table-cell" data-field="low_price">
+                                    {{ item.low_price|floatformat:8 }}
+                                </td>
+                                <td class="px-4 py-3.5 text-right font-mono text-sm text-muted-300" data-field="volume">
+                                    {{ item.volume|floatformat:4 }}
+                                </td>
+                                <td class="px-4 py-3.5 text-right font-mono text-sm text-muted-400 hidden xl:table-cell" data-field="quote_volume">
+                                    ${{ item.quote_volume|floatformat:0 }}
+                                </td>
+                                <td class="px-4 py-3.5 text-right font-mono text-sm text-muted-500 hidden xl:table-cell" data-field="count">
+                                    {{ item.count|intcomma }}
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="8" class="px-6 py-12 text-center">
+                                    <div class="flex flex-col items-center gap-3 text-muted-500">
+                                        <div class="w-16 h-16 rounded-2xl bg-surface-900 border border-white/5 flex items-center justify-center">
+                                            <i class="fas fa-satellite-dish text-2xl text-muted-600" aria-hidden="true"></i>
+                                        </div>
+                                        <p class="font-medium text-white">No data available</p>
+                                        <p class="text-sm">Check your connection to Binance</p>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Table Footer -->
+                <div class="px-5 py-3 border-t border-white/5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 text-xs text-muted-500">
+                    <span>Data source: <a href="https://www.binance.com" target="_blank" rel="noopener" class="text-brand-400 hover:text-brand-300 underline">Binance API</a></span>
+                    <span id="data-freshness" class="flex items-center gap-1.5">
+                        <span class="w-1.5 h-1.5 rounded-full bg-brand-500" aria-hidden="true"></span>
+                        Live
+                    </span>
+                </div>
+            </div>
+        </section>
+
+        <!-- Footer -->
+        <footer class="mt-10 pt-6 border-t border-white/5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 text-xs text-muted-500">
+            <p>Built with Django + python-binance + Tailwind CSS</p>
+            <p class="flex items-center gap-2">
+                <span class="w-2 h-2 rounded-full bg-brand-500 animate-pulse-soft" aria-hidden="true"></span>
+                Real-time updates
+            </p>
+        </footer>
+    </main>
+
+    <!-- Toast Container -->
+    <div id="toast-container" class="fixed bottom-6 right-6 z-50 flex flex-col gap-2 pointer-events-none" aria-live="polite" aria-label="Notifications"></div>
+
+    <!-- JavaScript -->
+    <script>
+        // =============================================================================
+        // APP STATE
+        // =============================================================================
+        const AppState = {
+            previousData: new Map(),
+            isRefreshing: false,
+            autoRefreshInterval: null,
+            AUTO_REFRESH_MS: 30000,
+            prefersReducedMotion: window.matchMedia('(prefers-reduced-motion: reduce)').matches,
+        };
+
+        // =============================================================================
+        // UTILITIES
+        // =============================================================================
+        const fmt = {
+            price: (v) => v?.toLocaleString('en-US', { minimumFractionDigits: 8, maximumFractionDigits: 8 }) ?? '--',
+            priceShort: (v) => v?.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) ?? '--',
+            change: (v) => (v ?? 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2, signDisplay: 'always' }),
+            volume: (v) => {
+                if (v == null || isNaN(v)) return '--';
+                if (v >= 1e9) return (v / 1e9).toFixed(2) + 'B';
+                if (v >= 1e6) return (v / 1e6).toFixed(2) + 'M';
+                if (v >= 1e3) return (v / 1e3).toFixed(2) + 'K';
+                return v.toLocaleString('en-US', { maximumFractionDigits: 2 });
+            },
+            volumeFull: (v) => v?.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 }) ?? '--',
+            count: (v) => v?.toLocaleString('en-US') ?? '--',
+        };
+
+        const $ = (sel, ctx = document) => ctx.querySelector(sel);
+        const $$ = (sel, ctx = document) => Array.from(ctx.querySelectorAll(sel));
+
+        function showToast(message, type = 'info', duration = 3000) {
+            const container = $('#toast-container');
+            const toast = document.createElement('div');
+            const configs = {
+                success: { bg: 'bg-brand-600', icon: 'fa-check-circle', border: 'border-brand-500' },
+                error: { bg: 'bg-danger-600', icon: 'fa-times-circle', border: 'border-danger-500' },
+                warning: { bg: 'bg-yellow-600', icon: 'fa-exclamation-triangle', border: 'border-yellow-500' },
+                info: { bg: 'bg-blue-600', icon: 'fa-info-circle', border: 'border-blue-500' },
+            };
+            const c = configs[type] || configs.info;
+
+            toast.className = `pointer-events-auto glass-strong border ${c.border}/30 ${c.bg} text-white px-4 py-3 rounded-xl shadow-xl flex items-center gap-3 min-w-[280px] max-w-sm animate-slide-up`;
+            toast.style.animationDelay = '0s';
+            toast.innerHTML = `
+                <i class="fas ${c.icon} text-lg flex-shrink-0"></i>
+                <span class="text-sm font-medium">${message}</span>
+                <button class="ml-auto text-white/70 hover:text-white transition-colors" aria-label="Dismiss">
+                    <i class="fas fa-times text-xs"></i>
+                </button>
+            `;
+
+            toast.querySelector('button').onclick = () => dismissToast(toast);
+            container.appendChild(toast);
+
+            setTimeout(() => dismissToast(toast), duration);
+        }
+
+        function dismissToast(toast) {
+            toast.style.animation = 'fadeIn 0.2s ease-out reverse';
+            setTimeout(() => toast.remove(), 200);
+        }
+
+        function updateConnectionStatus(connected, message = '') {
+            const dot = $('#status-dot');
+            const text = $('#status-text');
+            if (connected) {
+                dot.className = 'w-1.5 h-1.5 rounded-full bg-brand-500 animate-pulse-soft';
+                text.textContent = message || 'Connected';
+                text.className = 'text-xs font-medium text-surface-300';
+            } else {
+                dot.className = 'w-1.5 h-1.5 rounded-full bg-danger-500';
+                dot.classList.remove('animate-pulse-soft');
+                text.textContent = message || 'Disconnected';
+                text.className = 'text-xs font-medium text-danger-400';
+            }
+        }
+
+        function updateLiveTime() {
+            const now = new Date();
+            const timeStr = now.toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' });
+            $('#live-time').textContent = timeStr;
+        }
+
+        function updateLastUpdateTime() {
+            const now = new Date();
+            const timeStr = now.toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' });
+            $('#last-update-time').textContent = timeStr;
+        }
+
+        // =============================================================================
+        // SUMMARY CARDS
+        // =============================================================================
+        function renderSummaryCards(data) {
+            const container = $('#summary-cards');
+            if (!container) return;
+
+            const valid = data.filter(d => !d.error && d.quote_volume > 0);
+            const top5 = valid.sort((a, b) => b.quote_volume - a.quote_volume).slice(0, 5);
+
+            if (top5.length === 0) {
+                container.innerHTML = '<div class="col-span-full text-center py-8 text-muted-500">No data to display</div>';
+                return;
+            }
+
+            container.innerHTML = top5.map((item, i) => `
+                <article class="glass rounded-2xl p-4 border border-white/5 hover:border-brand-500/20 transition-all duration-300 animate-slide-up" style="animation-delay: ${i * 0.05}s" role="listitem">
+                    <div class="flex items-start justify-between mb-3">
+                        <div class="flex items-center gap-2.5">
+                            <div class="w-8 h-8 rounded-xl bg-gradient-to-br from-brand-500/20 to-brand-700/20 border border-brand-500/20 flex items-center justify-center text-xs font-bold text-brand-400">
+                                ${item.base_asset.slice(0, 3)}
+                            </div>
+                            <div>
+                                <p class="font-semibold text-white">${item.base_asset}/${item.quote_asset}</p>
+                                <p class="text-xs text-muted-500">${fmt.priceShort(item.last_price)}</p>
+                            </div>
+                        </div>
+                        <span class="text-xs font-semibold px-2 py-1 rounded-lg ${item.price_change_percent >= 0 ? 'bg-brand-500/10 text-brand-400' : 'bg-danger-500/10 text-danger-400'}">
+                            ${item.price_change_percent >= 0 ? '+' : ''}${item.price_change_percent.toFixed(2)}%
+                        </span>
+                    </div>
+                    <div class="flex justify-between items-center text-xs text-muted-400 pt-2 border-t border-white/5">
+                        <span>Vol: <span class="text-white font-mono font-medium">${fmt.volume(item.quote_volume)} USDT</span></span>
+                        <span>${fmt.count(item.count)} trades</span>
+                    </div>
+                </article>
+            `).join('');
+        }
+
+        // =============================================================================
+        // TABLE UPDATE
+        // =============================================================================
+        function updateMarketTable(data) {
+            const tbody = $('#market-tbody');
+            if (!tbody) return;
+
+            const validData = data.filter(item => !item.error);
+
+            if (validData.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="8" class="px-6 py-12 text-center">
+                            <div class="flex flex-col items-center gap-3 text-muted-500">
+                                <div class="w-16 h-16 rounded-2xl bg-surface-900 border border-white/5 flex items-center justify-center">
+                                    <i class="fas fa-exclamation-triangle text-2xl text-danger-500" aria-hidden="true"></i>
+                                </div>
+                                <p class="font-medium text-white">No valid data</p>
+                                <p class="text-sm">Check connection to Binance</p>
+                            </div>
+                        </td>
+                    </tr>
+                `;
+                return;
+            }
+
+            // Build rows
+            const rowsHtml = validData.map(item => {
+                const prev = AppState.previousData.get(item.symbol);
+                const priceChanged = prev && prev.last_price !== item.last_price;
+                const direction = prev && item.last_price > prev.last_price ? 'up' : prev && item.last_price < prev.last_price ? 'down' : null;
+
+                const changeClass = item.price_change_percent >= 0 ? 'bg-brand-500/10 text-brand-400' : 'bg-danger-500/10 text-danger-400';
+                const changeIcon = item.price_change_percent >= 0 ? 'fa-caret-up' : 'fa-caret-down';
+
+                return `
+                    <tr class="market-row ${priceChanged ? (direction === 'up' ? 'updating' : 'updating-danger') : ''}" data-symbol="${item.symbol}">
+                        <td class="px-4 py-3.5">
+                            <div class="flex items-center gap-3">
+                                <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-surface-800 to-surface-900 border border-white/5 flex items-center justify-center text-xs font-bold text-brand-400 shadow-inner">
+                                    ${item.base_asset.slice(0, 3)}
+                                </div>
+                                <div class="min-w-0">
+                                    <p class="font-medium text-white truncate">${item.base_asset}</p>
+                                    <p class="text-xs text-muted-500">${item.quote_asset}</p>
+                                </div>
+                            </div>
+                        </td>
+                        <td class="px-4 py-3.5 text-right font-mono text-sm text-white price-cell ${direction === 'up' ? 'value-up' : direction === 'down' ? 'value-down' : ''}" data-field="last_price">
+                            ${fmt.price(item.last_price)}
+                        </td>
+                        <td class="px-4 py-3.5 text-right">
+                            <span class="inline-flex items-center gap-1 px-2 py-1 rounded-lg ${changeClass} font-mono text-sm ${direction === 'up' ? 'value-up' : direction === 'down' ? 'value-down' : ''}" data-field="price_change_percent">
+                                <i class="fas ${changeIcon} text-xs" aria-hidden="true"></i>
+                                <span>${item.price_change_percent >= 0 ? '+' : ''}${item.price_change_percent.toFixed(2)}%</span>
+                            </span>
+                        </td>
+                        <td class="px-4 py-3.5 text-right font-mono text-sm text-muted-400 hidden lg:table-cell" data-field="high_price">
+                            ${fmt.price(item.high_price)}
+                        </td>
+                        <td class="px-4 py-3.5 text-right font-mono text-sm text-muted-400 hidden lg:table-cell" data-field="low_price">
+                            ${fmt.price(item.low_price)}
+                        </td>
+                        <td class="px-4 py-3.5 text-right font-mono text-sm text-muted-300" data-field="volume">
+                            ${fmt.volume(item.volume)}
+                        </td>
+                        <td class="px-4 py-3.5 text-right font-mono text-sm text-muted-400 hidden xl:table-cell" data-field="quote_volume">
+                            $${fmt.volumeFull(item.quote_volume)}
+                        </td>
+                        <td class="px-4 py-3.5 text-right font-mono text-sm text-muted-500 hidden xl:table-cell" data-field="count">
+                            ${fmt.count(item.count)}
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+
+            tbody.innerHTML = rowsHtml;
+
+            // Update previous data map
+            validData.forEach(item => AppState.previousData.set(item.symbol, { ...item }));
+        }
+
+        // =============================================================================
+        // DATA FETCHING
+        // =============================================================================
+        async function fetchMarketData(showToastOnError = true) {
+            if (AppState.isRefreshing) return;
+
+            AppState.isRefreshing = true;
+            const btn = $('#refresh-btn');
+            const icon = $('#refresh-icon');
+
+            if (btn) {
+                btn.disabled = true;
+                btn.classList.add('opacity-50', 'cursor-wait');
+                icon?.classList.add('fa-spin');
+            }
+
+            try {
+                const resp = await fetch(window.location.href, {
+                    method: 'GET',
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'Accept': 'application/json',
+                    },
+                    credentials: 'same-origin',
+                });
+
+                if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+
+                const result = await resp.json();
+
+                if (result.success && result.data) {
+                    updateMarketTable(result.data);
+                    renderSummaryCards(result.data);
+                    updateConnectionStatus(true);
+                    updateLiveTime();
+                    updateLastUpdateTime();
+                } else {
+                    throw new Error('Invalid response format');
+                }
+            } catch (err) {
+                console.error('Fetch error:', err);
+                updateConnectionStatus(false, `Error: ${err.message}`);
+                if (showToastOnError) showToast(`Failed to update: ${err.message}`, 'error');
+            } finally {
+                AppState.isRefreshing = false;
+                if (btn) {
+                    btn.disabled = false;
+                    btn.classList.remove('opacity-50', 'cursor-wait');
+                    icon?.classList.remove('fa-spin');
+                }
+            }
+        }
+
+        // =============================================================================
+        // AUTO REFRESH
+        // =============================================================================
+        function startAutoRefresh() {
+            stopAutoRefresh();
+            AppState.autoRefreshInterval = setInterval(() => fetchMarketData(false), AppState.AUTO_REFRESH_MS);
+        }
+
+        function stopAutoRefresh() {
+            if (AppState.autoRefreshInterval) {
+                clearInterval(AppState.autoRefreshInterval);
+                AppState.autoRefreshInterval = null;
+            }
+        }
+
+        // =============================================================================
+        // INITIALIZATION
+        // =============================================================================
+        document.addEventListener('DOMContentLoaded', () => {
+            // Initialize previous data from server-rendered HTML
+            $$('#market-tbody tr[data-symbol]').forEach(row => {
+                const symbol = row.dataset.symbol;
+                const priceCell = row.querySelector('.price-cell');
+                const changeCell = row.querySelector('.change-cell');
+                if (priceCell && changeCell) {
+                    const price = parseFloat(priceCell.textContent.replace(/,/g, ''));
+                    const change = parseFloat(changeCell.textContent.replace('%', '').replace('+', ''));
+                    if (!isNaN(price)) {
+                        AppState.previousData.set(symbol, { last_price: price, price_change_percent: change });
+                    }
+                }
+            });
+
+            // Initial summary cards
+            const initialData = $$('#market-tbody tr[data-symbol]').map(row => {
+                const symbol = row.dataset.symbol;
+                const cells = row.querySelectorAll('td');
+                return {
+                    symbol,
+                    base_asset: symbol.replace('USDT', ''),
+                    quote_asset: 'USDT',
+                    last_price: parseFloat(cells[1]?.textContent?.replace(/,/g, '') ?? '0'),
+                    price_change_percent: parseFloat(cells[2]?.querySelector('span:last-child')?.textContent?.replace('%', '').replace('+', '') ?? '0'),
+                    quote_volume: parseFloat(cells[6]?.textContent?.replace('$', '').replace(/,/g, '') ?? '0'),
+                    count: parseInt(cells[7]?.textContent?.replace(/,/g, '') ?? '0'),
+                };
+            }).filter(d => !isNaN(d.last_price));
+            renderSummaryCards(initialData);
+
+            // Event listeners
+            const refreshBtn = $('#refresh-btn');
+            const autoRefreshCb = $('#auto-refresh');
+
+            refreshBtn?.addEventListener('click', () => fetchMarketData(true));
+
+            autoRefreshCb?.addEventListener('change', (e) => {
+                if (e.target.checked) {
+                    startAutoRefresh();
+                    showToast('Auto-refresh enabled (30s)', 'success');
+                } else {
+                    stopAutoRefresh();
+                    showToast('Auto-refresh disabled', 'info');
+                }
+            });
+
+            // Start auto-refresh by default
+            startAutoRefresh();
+
+            // Initial time
+            updateLiveTime();
+            updateLastUpdateTime();
+
+            // Update clock every second
+            setInterval(updateLiveTime, 1000);
+
+            console.log('🚀 Crypto Monitor v2 initialized');
+
+            // Check for chart URL parameter to auto-open chart
+            const urlParams = new URLSearchParams(window.location.search);
+            const chartSymbol = urlParams.get('chart');
+            if (chartSymbol && window.ChartModal && typeof window.ChartModal.show === 'function') {
+                setTimeout(() => window.ChartModal.show(chartSymbol.toUpperCase(), '1h'), 500);
+            }
+        });
+
+        // Cleanup
+        window.addEventListener('beforeunload', stopAutoRefresh);
+
+        // Handle visibility change - pause when tab hidden
+        document.addEventListener('visibilitychange', () => {
+            if (document.hidden) stopAutoRefresh();
+            else if ($('#auto-refresh')?.checked) startAutoRefresh();
+        });
+
+        // =============================================================================
+        // CHART MODAL
+        // =============================================================================
+        const ChartModal = (() => {
+            let chart = null;
+            let currentSymbol = null;
+            let currentInterval = '1h';
+            let isLoading = false;
+
+            const modal = document.createElement('div');
+            modal.id = 'chart-modal';
+            modal.className = 'fixed inset-0 z-50 hidden';
+            modal.setAttribute('role', 'dialog');
+            modal.setAttribute('aria-modal', 'true');
+            modal.setAttribute('aria-labelledby', 'chart-modal-title');
+            modal.innerHTML = `
+                <div class="fixed inset-0 bg-black/70 backdrop-blur-sm" id="chart-modal-backdrop"></div>
+                <div class="fixed inset-4 md:inset-10 lg:inset-20 flex flex-col glass-strong border border-white/10 rounded-2xl overflow-hidden animate-slide-up">
+                    <!-- Header -->
+                    <header class="flex items-center justify-between px-5 py-4 border-b border-white/5">
+                        <div class="flex items-center gap-3">
+                            <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-brand-500 to-brand-700 flex items-center justify-center">
+                                <i class="fas fa-chart-area text-white" aria-hidden="true"></i>
+                            </div>
+                            <div>
+                                <h2 id="chart-modal-title" class="font-semibold text-white">BTCUSDT</h2>
+                                <p class="text-xs text-muted-500" id="chart-modal-subtitle">1h interval • Binance</p>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <!-- Interval selector -->
+                            <select id="chart-interval" class="bg-surface-800/50 border border-white/10 text-white text-xs px-3 py-1.5 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent appearance-none cursor-pointer"
+                                aria-label="Select time interval">
+                                <option value="1m">1m</option>
+                                <option value="5m">5m</option>
+                                <option value="15m">15m</option>
+                                <option value="30m">30m</option>
+                                <option value="1h" selected>1h</option>
+                                <option value="4h">4h</option>
+                                <option value="1d">1d</option>
+                                <option value="1w">1w</option>
+                            </select>
+                            <!-- Close button -->
+                            <button id="chart-modal-close" class="p-2 rounded-lg text-muted-400 hover:text-white hover:bg-white/5 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500" aria-label="Close chart">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>
+                    </header>
+
+                    <!-- Chart Container -->
+                    <div class="flex-1 relative min-h-[400px]">
+                        <div id="chart-container" class="w-full h-full"></div>
+                        <!-- Loading overlay -->
+                        <div id="chart-loading" class="absolute inset-0 flex items-center justify-center glass rounded-xl" style="display: none;">
+                            <div class="flex flex-col items-center gap-3 text-muted-400">
+                                <div class="w-8 h-8 border-3 border-brand-500/30 border-t-brand-500 rounded-full animate-spin"></div>
+                                <span class="text-sm font-medium">Loading chart...</span>
+                            </div>
+                        </div>
+                        <!-- Error overlay -->
+                        <div id="chart-error" class="absolute inset-0 flex items-center justify-center glass rounded-xl hidden">
+                            <div class="text-center px-6">
+                                <i class="fas fa-exclamation-triangle text-danger-500 text-3xl mb-2"></i>
+                                <p class="font-medium text-white mb-1">Failed to load chart</p>
+                                <p class="text-sm text-muted-500" id="chart-error-message"></p>
+                                <button id="chart-retry" class="mt-4 px-4 py-2 bg-brand-500/20 text-brand-400 border border-brand-500/30 rounded-lg text-sm font-medium hover:bg-brand-500/30 transition-colors">Retry</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Footer with info -->
+                    <footer class="px-5 py-3 border-t border-white/5 flex flex-wrap items-center justify-between gap-3 text-xs text-muted-500">
+                        <div class="flex items-center gap-4">
+                            <span id="chart-price" class="font-mono font-medium text-white">--</span>
+                            <span id="chart-change" class="font-mono text-sm">--</span>
+                            <span id="chart-volume" class="font-mono">Vol: --</span>
+                        </div>
+                        <span>Data: Binance API • Click & drag to pan • Scroll to zoom</span>
+                    </footer>
+                </div>
+            `;
+            document.body.appendChild(modal);
+
+            const backdrop = modal.querySelector('#chart-modal-backdrop');
+            const closeBtn = modal.querySelector('#chart-modal-close');
+            const intervalSelect = modal.querySelector('#chart-interval');
+            const retryBtn = modal.querySelector('#chart-retry');
+            const container = modal.querySelector('#chart-container');
+            const loading = modal.querySelector('#chart-loading');
+            const errorEl = modal.querySelector('#chart-error');
+            const errorMsg = modal.querySelector('#chart-error-message');
+
+            function show(symbol, interval = '1h') {
+                currentSymbol = symbol;
+                currentInterval = interval;
+                modal.classList.remove('hidden');
+                document.body.style.overflow = 'hidden';
+                intervalSelect.value = interval;
+                loadChart();
+            }
+
+            function hide() {
+                modal.classList.add('hidden');
+                document.body.style.overflow = '';
+                if (chart) {
+                    chart.remove();
+                    chart = null;
+                }
+            }
+
+            async function loadChart() {
+                if (isLoading || !currentSymbol) return;
+                isLoading = true;
+
+                loading.style.display = 'flex';
+                errorEl.classList.add('hidden');
+                container.innerHTML = '';
+
+                try {
+                    const url = `{% url 'monitoring:api_klines' %}?symbol=${encodeURIComponent(currentSymbol)}&interval=${encodeURIComponent(currentInterval)}&limit=300`;
+                    const resp = await fetch(url, {
+                        headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' },
+                        credentials: 'same-origin',
+                    });
+
+                    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+
+                    const result = await resp.json();
+
+                    if (!result.success || !result.data?.length) {
+                        throw new Error(result.error || 'No chart data available');
+                    }
+
+                    renderChart(result.data);
+                    updateFooterInfo(result.data);
+
+                } catch (err) {
+                    console.error('Chart load error:', err);
+                    loading.style.display = 'none';
+                    errorMsg.textContent = err.message;
+                    errorEl.classList.remove('hidden');
+                } finally {
+                    isLoading = false;
+                }
+            }
+
+            function renderChart(data) {
+                loading.style.display = 'none';
+
+                // Lightweight Charts configuration
+                const chartOptions = {
+                    layout: {
+                        background: { type: 'solid', color: '#0f172a' },
+                        textColor: '#94a3b8',
+                        fontFamily: 'Inter, ui-sans-serif, system-ui',
+                        fontSize: 11,
+                    },
+                    grid: {
+                        vertLines: { color: 'rgba(148, 163, 184, 0.05)' },
+                        horzLines: { color: 'rgba(148, 163, 184, 0.05)' },
+                    },
+                    rightPriceScale: {
+                        borderVisible: false,
+                        scaleMargins: { top: 0.1, bottom: 0.08 },
+                        mode: 2, // percentage
+                    },
+                    timeScale: {
+                        borderVisible: false,
+                        timeVisible: true,
+                        secondsVisible: false,
+                        tickMarkFormatter: (time) => {
+                            const date = new Date(time * 1000);
+                            return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+                        },
+                    },
+                    crosshair: {
+                        mode: 1, // magnet
+                        vertLine: { color: 'rgba(148, 163, 184, 0.3)', width: 1, style: 2 },
+                        horzLine: { color: 'rgba(148, 163, 184, 0.3)', width: 1, style: 2 },
+                    },
+                    handleScroll: { mouseWheel: true, pressedMouseMove: true, horzTouchDrag: true, vertTouchDrag: true },
+                    handleScale: { mouseWheel: true, pinch: true, axisDoubleClickReset: true, axisPressedMouseMove: { time: true, price: true } },
+                    localization: {
+                        locale: 'en-US',
+                        dateFormat: 'MMM dd',
+                    },
+                };
+
+                chart = LightweightCharts.createChart(container, chartOptions);
+
+                // Candlestick series
+                const candleSeries = chart.addCandlestickSeries({
+                    upColor: '#22c55e',
+                    downColor: '#ef4444',
+                    borderUpColor: '#22c55e',
+                    borderDownColor: '#ef4444',
+                    wickUpColor: '#22c55e',
+                    wickDownColor: '#ef4444',
+                    priceScaleId: 'right',
+                });
+
+                // Volume series (histogram)
+                const volumeSeries = chart.addHistogramSeries({
+                    color: '#22c55e',
+                    priceFormat: { type: 'volume' },
+                    priceScaleId: 'volume',
+                    base: 0,
+                });
+                chart.priceScale('volume').applyOptions({
+                    scaleMargins: { top: 0.8, bottom: 0 },
+                    borderVisible: false,
+                    visible: true,
+                });
+
+                // Format data for Lightweight Charts
+                const candleData = data.map(d => ({
+                    time: d.time,
+                    open: d.open,
+                    high: d.high,
+                    low: d.low,
+                    close: d.close,
+                }));
+                const volumeData = data.map(d => ({
+                    time: d.time,
+                    value: d.volume,
+                    color: d.close >= d.open ? 'rgba(34, 197, 94, 0.5)' : 'rgba(239, 68, 68, 0.5)',
+                }));
+
+                candleSeries.setData(candleData);
+                volumeSeries.setData(volumeData);
+
+                // Fit content
+                chart.timeScale().fitContent();
+
+                // Crosshair sync for footer info
+                chart.subscribeCrosshairMove((param) => {
+                    if (param.time && param.seriesPrices.size > 0) {
+                        const candle = param.seriesPrices.get(candleSeries);
+                        if (candle) {
+                            updateFooterInfoFromCandle(candle, param.time);
+                        }
+                    }
+                });
+            }
+
+            function updateFooterInfo(data) {
+                if (!data.length) return;
+                const last = data[data.length - 1];
+                const first = data[0];
+                const change = ((last.close - first.open) / first.open) * 100;
+                const changeAbs = last.close - first.open;
+
+                modal.querySelector('#chart-price').textContent = fmt.price(last.close);
+                modal.querySelector('#chart-change').innerHTML = `
+                    <span class="${change >= 0 ? 'text-brand-400' : 'text-danger-400'}">
+                        ${change >= 0 ? '+' : ''}${change.toFixed(2)}% (${changeAbs >= 0 ? '+' : ''}${fmt.priceShort(changeAbs)})
+                    </span>
+                `;
+                modal.querySelector('#chart-volume').textContent = `Vol: ${fmt.volume(last.volume)}`;
+            }
+
+            function updateFooterInfoFromCandle(candle, time) {
+                const dataPoint = data.find(d => d.time === time);
+                if (!dataPoint) return;
+
+                const first = data[0];
+                const change = ((candle.close - first.open) / first.open) * 100;
+                const changeAbs = candle.close - first.open;
+
+                modal.querySelector('#chart-price').textContent = fmt.price(candle.close);
+                modal.querySelector('#chart-change').innerHTML = `
+                    <span class="${change >= 0 ? 'text-brand-400' : 'text-danger-400'}">
+                        ${change >= 0 ? '+' : ''}${change.toFixed(2)}% (${changeAbs >= 0 ? '+' : ''}${fmt.priceShort(changeAbs)})
+                    </span>
+                `;
+                modal.querySelector('#chart-volume').textContent = `Vol: ${fmt.volume(dataPoint.volume)}`;
+            }
+
+            // Event listeners
+            closeBtn?.addEventListener('click', hide);
+            backdrop?.addEventListener('click', hide);
+            intervalSelect?.addEventListener('change', (e) => {
+                currentInterval = e.target.value;
+                loadChart();
+            });
+            retryBtn?.addEventListener('click', loadChart);
+
+            // ESC key to close
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape' && !modal.classList.contains('hidden')) {
+                    hide();
+                }
+            });
+
+            return { show, hide };
+        })();
+
+        // Expose ChartModal globally for URL parameter handling
+        window.ChartModal = ChartModal;
+
+        // Make rows clickable for chart
+        function initChartTriggers() {
+            $$('#market-tbody tr[data-symbol]').forEach(row => {
+                row.style.cursor = 'pointer';
+                row.addEventListener('click', (e) => {
+                    // Don't trigger if clicking on interactive elements
+                    if (e.target.closest('button, a, select, input')) return;
+                    const symbol = row.dataset.symbol;
+                    if (symbol) ChartModal.show(symbol, '1h');
+                });
+                // Keyboard accessibility
+                row.setAttribute('tabindex', '0');
+                row.setAttribute('role', 'button');
+                row.setAttribute('aria-label', `View chart for ${row.dataset.symbol}`);
+                row.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        const symbol = row.dataset.symbol;
+                        if (symbol) ChartModal.show(symbol, '1h');
+                    }
+                });
+            });
+        }
+
+        // Call initChartTriggers after table updates
+        const originalUpdateMarketTable = updateMarketTable;
+        updateMarketTable = function(data) {
+            originalUpdateMarketTable(data);
+            // Re-init triggers after table re-render
+            setTimeout(initChartTriggers, 0);
+        };
+    </script>
+</body>
+</html>

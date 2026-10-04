@@ -1,0 +1,25 @@
+# =============================================================================
+# DEPENDENCIAS DE DESARROLLO
+# =============================================================================
+# Instalar con: pip install -r requirements-dev.txt
+# Incluye las dependencias base + herramientas de desarrollo
+# =============================================================================
+
+# Dependencias base
+-r requirements.txt
+
+# Linting y formateo (Ruff: rápido, moderno, reemplaza flake8+black+isort)
+ruff>=0.1.0
+
+# Testing
+pytest>=7.4.0
+pytest-django>=4.5.0
+pytest-cov>=4.1.0
+
+# Type checking
+mypy>=1.5.0
+django-stubs>=4.2.0
+
+# Utilidades de desarrollo
+ipython>=8.15.0
+django-extensions>=3.2.0

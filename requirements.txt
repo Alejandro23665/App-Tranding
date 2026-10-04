@@ -1,0 +1,36 @@
+# =============================================================================
+# DEPENDENCIAS DEL PROYECTO - SISTEMA DE MONITOREO DE CRIPTOMONEDAS
+# =============================================================================
+# Instalar con: pip install -r requirements.txt
+# =============================================================================
+
+# Framework web principal
+Django>=4.2,<5.0
+
+# Cliente oficial de Binance (REQUERIDO - única librería permitida para Binance)
+python-binance>=1.0.19
+
+# Carga de variables de entorno desde archivo .env
+python-dotenv>=1.0.0
+
+# Utilidades para manejo de fechas/horas (opcional, Django lo incluye)
+# python-dateutil>=2.8.2
+
+# =============================================================================
+# DEPENDENCIAS DE DESARROLLO (OPCIONALES)
+# =============================================================================
+# Descomenta para instalar en entorno de desarrollo:
+# pip install -r requirements-dev.txt
+
+# Linting y formateo
+# ruff>=0.1.0
+# black>=23.0.0
+
+# Testing
+# pytest>=7.4.0
+# pytest-django>=4.5.0
+# pytest-cov>=4.1.0
+
+# Type checking
+# mypy>=1.5.0
+# django-stubs>=4.2.0

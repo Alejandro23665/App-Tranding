@@ -1,0 +1,650 @@
+{% load static humanize %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Top 10 mejores y peores criptomonedas por performance y volatilidad - Binance">
+    <title>{{ page_title|default:"Top & Flop — Crypto Monitor" }}</title>
+
+    <!-- Tailwind CSS via CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- Tailwind Config -->
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        surface: {
+                            50: '#f8fafc',
+                            100: '#f1f5f9',
+                            800: '#1e293b',
+                            900: '#0f172a',
+                            950: '#020617',
+                        },
+                        brand: {
+                            50: '#f0fdf4',
+                            100: '#dcfce7',
+                            400: '#4ade80',
+                            500: '#22c55e',
+                            600: '#16a34a',
+                            700: '#15803d',
+                            800: '#166534',
+                            900: '#14532d',
+                        },
+                        danger: {
+                            50: '#fef2f2',
+                            100: '#fee2e2',
+                            400: '#f87171',
+                            500: '#ef4444',
+                            600: '#dc2626',
+                            700: '#b91c1c',
+                        },
+                        warning: {
+                            50: '#fffbeb',
+                            100: '#fef3c7',
+                            400: '#fbbf24',
+                            500: '#f59e0b',
+                            600: '#d97706',
+                        },
+                        muted: {
+                            400: '#94a3b8',
+                            500: '#64748b',
+                            600: '#475569',
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'ui-sans-serif', 'system-ui', 'sans-serif'],
+                        mono: ['JetBrains Mono', 'ui-monospace', 'SFMono-Regular', 'monospace'],
+                    },
+                    animation: {
+                        'fade-in': 'fadeIn 0.3s ease-out',
+                        'slide-up': 'slideUp 0.4s ease-out',
+                        'slide-down': 'slideDown 0.3s ease-out',
+                        'pulse-soft': 'pulseSoft 2s ease-in-out infinite',
+                        'shimmer': 'shimmer 1.5s ease-in-out infinite',
+                    },
+                    keyframes: {
+                        fadeIn: { '0%': { opacity: '0' }, '100%': { opacity: '1' } },
+                        slideUp: { '0%': { opacity: '0', transform: 'translateY(10px)' }, '100%': { opacity: '1', transform: 'translateY(0)' } },
+                        slideDown: { '0%': { opacity: '0', transform: 'translateY(-10px)' }, '100%': { opacity: '1', transform: 'translateY(0)' } },
+                        pulseSoft: { '0%, 100%': { opacity: '1' }, '50%': { opacity: '0.6' } },
+                        shimmer: { '0%': { backgroundPosition: '-200% 0' }, '100%': { backgroundPosition: '200% 0' } },
+                    },
+                    backgroundImage: {
+                        'gradient-radial': 'radial-gradient(var(--tw-gradient-stops))',
+                        'shimmer-gradient': 'linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent)',
+                    },
+                    boxShadow: {
+                        'glow-green': '0 0 20px rgba(34, 197, 94, 0.3)',
+                        'glow-red': '0 0 20px rgba(239, 68, 68, 0.3)',
+                        'glow-gold': '0 0 20px rgba(245, 158, 11, 0.3)',
+                        'inner-glow': 'inset 0 1px 0 rgba(255,255,255,0.05)',
+                    },
+                }
+            }
+        }
+    </script>
+
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+
+    <style>
+        .glass {
+            background: rgba(15, 23, 42, 0.7);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(148, 163, 184, 0.1);
+        }
+        .glass-strong {
+            background: rgba(15, 23, 42, 0.85);
+            backdrop-filter: blur(24px);
+            -webkit-backdrop-filter: blur(24px);
+            border: 1px solid rgba(148, 163, 184, 0.15);
+        }
+        .skeleton {
+            background: linear-gradient(90deg, #1e293b 25%, #334155 50%, #1e293b 75%);
+            background-size: 200% 100%;
+            animation: shimmer 1.5s ease-in-out infinite;
+            border-radius: 4px;
+        }
+        .rank-badge {
+            width: 28px;
+            height: 28px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 0.75rem;
+            border-radius: 8px;
+        }
+        .rank-1 { background: linear-gradient(135deg, #fbbf24, #f59e0b); color: #1e293b; box-shadow: 0 0 15px rgba(245, 158, 11, 0.5); }
+        .rank-2 { background: linear-gradient(135deg, #e5e7eb, #9ca3af); color: #1e293b; box-shadow: 0 0 15px rgba(156, 163, 175, 0.5); }
+        .rank-3 { background: linear-gradient(135deg, #f5b27b, #d97706); color: #1e293b; box-shadow: 0 0 15px rgba(217, 119, 6, 0.5); }
+        .rank-other { background: rgba(148, 163, 184, 0.2); color: #94a3b8; }
+        .metric-bar {
+            height: 6px;
+            border-radius: 3px;
+            background: rgba(148, 163, 184, 0.1);
+            overflow: hidden;
+        }
+        .metric-bar-fill {
+            height: 100%;
+            border-radius: 3px;
+            transition: width 0.8s ease-out;
+        }
+        @media (prefers-reduced-motion: reduce) {
+            * { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+        }
+        ::selection { background: rgba(34, 197, 94, 0.3); color: white; }
+    </style>
+</head>
+<body class="bg-surface-950 text-surface-50 font-sans antialiased min-h-screen">
+    <!-- Background ambient glow -->
+    <div class="fixed inset-0 pointer-events-none overflow-hidden" aria-hidden="true">
+        <div class="absolute top-1/4 left-1/4 w-[600px] h-[600px] rounded-full bg-brand-500/5 blur-[200px]"></div>
+        <div class="absolute bottom-1/4 right-1/4 w-[500px] h-[500px] rounded-full bg-warning-500/5 blur-[200px]"></div>
+        <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] rounded-full bg-brand-800/10 blur-[300px]"></div>
+    </div>
+
+    <!-- Navbar -->
+    <nav class="relative z-10 glass-strong border-b border-white/5 sticky top-0">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex items-center justify-between h-16 lg:h-18">
+                <!-- Brand -->
+                <div class="flex items-center gap-3">
+                    <div class="relative p-2 bg-gradient-to-br from-brand-500 to-brand-700 rounded-xl shadow-lg shadow-brand-500/20">
+                        <i class="fas fa-chart-line text-white text-xl" aria-hidden="true"></i>
+                        <span class="absolute inset-0 rounded-xl bg-brand-500/50 animate-pulse-soft" aria-hidden="true"></span>
+                    </div>
+                    <div>
+                        <h1 class="text-lg lg:text-xl font-bold tracking-tight text-white">Crypto Monitor</h1>
+                        <p class="text-xs text-muted-400 font-medium">Live data from Binance</p>
+                    </div>
+                </div>
+
+                <!-- Navigation -->
+                <div class="hidden lg:flex items-center gap-1 ml-8">
+                    <a href="{% url 'monitoring:dashboard' %}" class="px-3 py-2 text-sm font-medium text-muted-400 hover:text-white hover:bg-white/5 rounded-lg transition-colors">
+                        <i class="fas fa-home mr-1.5"></i> Dashboard
+                    </a>
+                    <a href="{% url 'monitoring:top_flop' %}" class="px-3 py-2 text-sm font-medium text-white bg-brand-500/10 rounded-lg" aria-current="page">
+                        <i class="fas fa-trophy mr-1.5"></i> Top & Flop
+                    </a>
+                    <a href="{% url 'monitoring:ai_analysis' %}" class="px-3 py-2 text-sm font-medium text-muted-400 hover:text-purple-400 hover:bg-purple-500/10 rounded-lg transition-colors">
+                        <i class="fas fa-robot mr-1.5"></i> IA
+                    </a>
+                </div>
+
+                <!-- Search Bar (Desktop) - visible on md+ (768px+) -->
+                <div class="hidden md:flex-1 md:max-w-md mx-8">
+                    <form action="{% url 'monitoring:search' %}" method="GET" class="relative">
+                        <label for="header-search" class="sr-only">Buscar criptomoneda</label>
+                        <input
+                            type="search"
+                            id="header-search"
+                            name="q"
+                            placeholder="Buscar (ej: BTC, ETH, SOL)..."
+                            class="w-full px-4 py-2 pl-10 bg-white/5 border border-white/10 rounded-xl text-white placeholder:text-muted-500 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent transition-all"
+                            autocomplete="off"
+                            aria-label="Buscar criptomoneda por símbolo o nombre"
+                        >
+                        <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-muted-500" aria-hidden="true"></i>
+                    </form>
+                </div>
+
+                <!-- Right controls -->
+                <div class="flex items-center gap-3">
+                    <a href="{% url 'monitoring:api_top_flop' %}" target="_blank" rel="noopener" class="hidden sm:flex items-center gap-1.5 px-3 py-2 text-xs font-medium text-muted-400 hover:text-brand-400 transition-colors glass rounded-lg border border-white/5 hover:border-brand-500/20">
+                        <i class="fas fa-code text-xs"></i>
+                        <span>API JSON</span>
+                    </a>
+                    <span class="hidden sm:block px-3 py-2 text-xs text-muted-500 glass rounded-lg border border-white/5" id="last-update-nav">Updated: --:--:--</span>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Mobile Search Bar (shown below nav on mobile) -->
+    <div class="md:hidden px-4 py-3 border-b border-white/5 bg-surface-950/80 backdrop-blur-sm sticky top-16 z-40">
+        <form action="{% url 'monitoring:search' %}" method="GET" class="relative max-w-md mx-auto">
+            <label for="mobile-search" class="sr-only">Buscar criptomoneda</label>
+            <input
+                type="search"
+                id="mobile-search"
+                name="q"
+                placeholder="Buscar criptomoneda (ej: BTC, ETH, SOL)..."
+                class="w-full px-4 py-2 pl-10 bg-white/5 border border-white/10 rounded-xl text-white placeholder:text-muted-500 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent transition-all"
+                autocomplete="off"
+                aria-label="Buscar criptomoneda por símbolo o nombre"
+            >
+            <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-muted-500" aria-hidden="true"></i>
+        </form>
+    </div>
+
+    <!-- Main Content -->
+    <main class="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 lg:py-8">
+        <!-- Page Header -->
+        <header class="mb-10 animate-slide-down">
+            <div class="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-6">
+                <div>
+                    <div class="flex items-center gap-3 mb-2">
+                        <div class="p-3 bg-gradient-to-br from-warning-500 to-warning-600 rounded-xl">
+                            <i class="fas fa-trophy text-white text-2xl" aria-hidden="true"></i>
+                        </div>
+                        <div>
+                            <h1 class="text-3xl lg:text-4xl font-bold tracking-tight text-white">Top & Flop</h1>
+                            <p class="text-sm text-muted-400">Best & worst performers by price action & volatility</p>
+                        </div>
+                    </div>
+                    <p class="text-sm text-muted-500 ml-12">{{ total_analyzed|default:"--" }} pairs analyzed • 30d volatility • Updated {{ timestamp|date:"M d, H:i" }}</p>
+                </div>
+                <div class="flex items-center gap-3">
+                    <button id="refresh-topflop" type="button" class="px-4 py-2 bg-white/5 hover:bg-white/10 text-white font-medium text-sm rounded-xl transition-all duration-200 flex items-center gap-2 border border-white/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 focus-visible:ring-offset-surface-950">
+                        <i class="fas fa-sync-alt" id="refresh-topflop-icon"></i>
+                        <span>Refresh</span>
+                    </button>
+                </div>
+            </div>
+        </header>
+
+        <!-- Stats Summary -->
+        <section class="mb-10 animate-slide-up" style="animation-delay: 0.1s;">
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <!-- Top Gainer -->
+                <article class="glass-strong rounded-2xl p-5 border border-white/5 relative overflow-hidden">
+                    <div class="absolute inset-0 bg-gradient-to-r from-brand-500/10 via-transparent to-transparent" aria-hidden="true"></div>
+                    <div class="relative flex items-start justify-between">
+                        <div>
+                            <p class="text-xs text-muted-500 uppercase tracking-wider mb-1">Best Performer</p>
+                            {% if top_performers.0 %}
+                            <p class="text-2xl lg:text-3xl font-bold text-white">{{ top_performers.0.base_asset }}/{{ top_performers.0.quote_asset }}</p>
+                            <div class="flex items-center gap-3 mt-2">
+                                <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-brand-500/10 text-brand-400 text-sm font-semibold font-mono">
+                                    <i class="fas fa-arrow-up text-xs"></i>
+                                    {{ top_performers.0.price_change_percent|floatformat:2 }}%
+                                </span>
+                                <span class="text-xs text-muted-400 font-mono">Vol: {{ top_performers.0.volatility|floatformat:2 }}%</span>
+                            </div>
+                            {% else %}
+                            <p class="text-2xl lg:text-3xl font-bold text-muted-500">--</p>
+                            {% endif %}
+                        </div>
+                        <div class="text-right">
+                            {% if top_performers.0 %}
+                            <p class="text-3xl lg:text-4xl font-bold text-brand-400 tabular-nums font-mono">#1</p>
+                            <p class="text-xs text-muted-500">Performance Score</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                </article>
+
+                <!-- Biggest Loser -->
+                <article class="glass-strong rounded-2xl p-5 border border-white/5 relative overflow-hidden">
+                    <div class="absolute inset-0 bg-gradient-to-r from-danger-500/10 via-transparent to-transparent" aria-hidden="true"></div>
+                    <div class="relative flex items-start justify-between">
+                        <div>
+                            <p class="text-xs text-muted-500 uppercase tracking-wider mb-1">Worst Performer</p>
+                            {% if flop_performers.0 %}
+                            <p class="text-2xl lg:text-3xl font-bold text-white">{{ flop_performers.0.base_asset }}/{{ flop_performers.0.quote_asset }}</p>
+                            <div class="flex items-center gap-3 mt-2">
+                                <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-danger-500/10 text-danger-400 text-sm font-semibold font-mono">
+                                    <i class="fas fa-arrow-down text-xs"></i>
+                                    {{ flop_performers.0.price_change_percent|floatformat:2 }}%
+                                </span>
+                                <span class="text-xs text-muted-400 font-mono">Vol: {{ flop_performers.0.volatility|floatformat:2 }}%</span>
+                            </div>
+                            {% else %}
+                            <p class="text-2xl lg:text-3xl font-bold text-muted-500">--</p>
+                            {% endif %}
+                        </div>
+                        <div class="text-right">
+                            {% if flop_performers.0 %}
+                            <p class="text-3xl lg:text-4xl font-bold text-danger-400 tabular-nums font-mono">#{{ total_analyzed }}</p>
+                            <p class="text-xs text-muted-500">Performance Score</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                </article>
+
+                <!-- Most Volatile -->
+                <article class="glass-strong rounded-2xl p-5 border border-white/5 relative overflow-hidden">
+                    <div class="absolute inset-0 bg-gradient-to-r from-warning-500/10 via-transparent to-transparent" aria-hidden="true"></div>
+                    <div class="relative flex items-start justify-between">
+                        <div>
+                            <p class="text-xs text-muted-500 uppercase tracking-wider mb-1">Most Volatile</p>
+                            {% if top_volatile.0 %}
+                            <p class="text-2xl lg:text-3xl font-bold text-white">{{ top_volatile.0.base_asset }}/{{ top_volatile.0.quote_asset }}</p>
+                            <div class="flex items-center gap-3 mt-2">
+                                <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-warning-500/10 text-warning-400 text-sm font-semibold font-mono">
+                                    <i class="fas fa-wave-square text-xs"></i>
+                                    {{ top_volatile.0.volatility|floatformat:2 }}%
+                                </span>
+                                <span class="text-xs text-muted-400 font-mono">24h: {{ top_volatile.0.price_change_percent|floatformat:2 }}%</span>
+                            </div>
+                            {% else %}
+                            <p class="text-2xl lg:text-3xl font-bold text-muted-500">--</p>
+                            {% endif %}
+                        </div>
+                        <div class="text-right">
+                            {% if top_volatile.0 %}
+                            <p class="text-3xl lg:text-4xl font-bold text-warning-400 tabular-nums font-mono">#1</p>
+                            <p class="text-xs text-muted-500">Volatility Score</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                </article>
+            </div>
+        </section>
+
+        <!-- Top Performers Table -->
+        <section class="mb-10 animate-slide-up" style="animation-delay: 0.2s;">
+            <div class="glass-strong rounded-2xl overflow-hidden">
+                <div class="px-6 py-4 border-b border-white/5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                    <div class="flex items-center gap-3">
+                        <div class="p-2 bg-brand-500/10 rounded-xl text-brand-400">
+                            <i class="fas fa-arrow-trend-up text-lg" aria-hidden="true"></i>
+                        </div>
+                        <div>
+                            <h2 class="font-semibold text-white">Top 10 Performers</h2>
+                            <p class="text-xs text-muted-500">Ranked by performance score (price change + volatility factor)</p>
+                        </div>
+                    </div>
+                    <span class="text-xs text-muted-500 hidden sm:block">{{ top_performers|length }} coins</span>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="w-full" role="table" aria-label="Top 10 performers">
+                        <thead>
+                            <tr class="border-b border-white/5 bg-surface-900/50">
+                                <th class="px-4 py-3.5 text-left text-xs font-semibold text-muted-500 uppercase tracking-wider w-16">Rank</th>
+                                <th class="px-4 py-3.5 text-left text-xs font-semibold text-muted-500 uppercase tracking-wider">Pair</th>
+                                <th class="px-4 py-3.5 text-right text-xs font-semibold text-muted-500 uppercase tracking-wider tabular-nums font-mono">Price</th>
+                                <th class="px-4 py-3.5 text-right text-xs font-semibold text-muted-500 uppercase tracking-wider tabular-nums font-mono">24h Change</th>
+                                <th class="px-4 py-3.5 text-right text-xs font-semibold text-muted-500 uppercase tracking-wider tabular-nums font-mono hidden md:table-cell">Volatility (30d)</th>
+                                <th class="px-4 py-3.5 text-right text-xs font-semibold text-muted-500 uppercase tracking-wider tabular-nums font-mono hidden lg:table-cell">Volume (24h)</th>
+                                <th class="px-4 py-3.5 text-right text-xs font-semibold text-muted-500 uppercase tracking-wider tabular-nums font-mono">Score</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-white/5">
+                            {% for item in top_performers %}
+                            <tr class="hover:bg-white/2.5 transition-colors">
+                                <td class="px-4 py-3.5">
+                                    <span class="rank-badge rank-{% if forloop.counter <= 3 %}{{ forloop.counter }}{% else %}other{% endif %}">{{ forloop.counter }}</span>
+                                </td>
+                                <td class="px-4 py-3.5">
+                                    <div class="flex items-center gap-3">
+                                        <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-surface-800 to-surface-900 border border-white/5 flex items-center justify-center text-xs font-bold text-brand-400">
+                                            {{ item.base_asset|slice:":3" }}
+                                        </div>
+                                        <div>
+                                            <p class="font-medium text-white">{{ item.base_asset }}</p>
+                                            <p class="text-xs text-muted-500">{{ item.quote_asset }}</p>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td class="px-4 py-3.5 text-right font-mono text-sm text-white">{{ item.last_price|floatformat:8 }}</td>
+                                <td class="px-4 py-3.5 text-right">
+                                    <span class="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-brand-500/10 text-brand-400 font-mono text-sm">
+                                        <i class="fas fa-arrow-up text-xs" aria-hidden="true"></i>
+                                        +{{ item.price_change_percent|floatformat:2 }}%
+                                    </span>
+                                </td>
+                                <td class="px-4 py-3.5 text-right font-mono text-sm text-muted-400 hidden md:table-cell">{{ item.volatility|floatformat:2 }}%</td>
+                                <td class="px-4 py-3.5 text-right font-mono text-sm text-muted-400 hidden lg:table-cell">${{ item.quote_volume|floatformat:0 }}</td>
+                                <td class="px-4 py-3.5 text-right font-mono text-sm font-semibold text-brand-400">{{ item.performance_score|floatformat:2 }}</td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="7" class="px-6 py-12 text-center text-muted-500">No data available</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- Flop Performers Table -->
+        <section class="mb-10 animate-slide-up" style="animation-delay: 0.3s;">
+            <div class="glass-strong rounded-2xl overflow-hidden">
+                <div class="px-6 py-4 border-b border-white/5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                    <div class="flex items-center gap-3">
+                        <div class="p-2 bg-danger-500/10 rounded-xl text-danger-400">
+                            <i class="fas fa-arrow-trend-down text-lg" aria-hidden="true"></i>
+                        </div>
+                        <div>
+                            <h2 class="font-semibold text-white">Bottom 10 Performers</h2>
+                            <p class="text-xs text-muted-500">Ranked by worst performance score (price decline + volatility)</p>
+                        </div>
+                    </div>
+                    <span class="text-xs text-muted-500 hidden sm:block">{{ flop_performers|length }} coins</span>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="w-full" role="table" aria-label="Bottom 10 performers">
+                        <thead>
+                            <tr class="border-b border-white/5 bg-surface-900/50">
+                                <th class="px-4 py-3.5 text-left text-xs font-semibold text-muted-500 uppercase tracking-wider w-16">Rank</th>
+                                <th class="px-4 py-3.5 text-left text-xs font-semibold text-muted-500 uppercase tracking-wider">Pair</th>
+                                <th class="px-4 py-3.5 text-right text-xs font-semibold text-muted-500 uppercase tracking-wider tabular-nums font-mono">Price</th>
+                                <th class="px-4 py-3.5 text-right text-xs font-semibold text-muted-500 uppercase tracking-wider tabular-nums font-mono">24h Change</th>
+                                <th class="px-4 py-3.5 text-right text-xs font-semibold text-muted-500 uppercase tracking-wider tabular-nums font-mono hidden md:table-cell">Volatility (30d)</th>
+                                <th class="px-4 py-3.5 text-right text-xs font-semibold text-muted-500 uppercase tracking-wider tabular-nums font-mono hidden lg:table-cell">Volume (24h)</th>
+                                <th class="px-4 py-3.5 text-right text-xs font-semibold text-muted-500 uppercase tracking-wider tabular-nums font-mono">Score</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-white/5">
+                            {% for item in flop_performers %}
+                            <tr class="hover:bg-white/2.5 transition-colors">
+                                <td class="px-4 py-3.5">
+                                    <span class="rank-badge rank-other">{{ forloop.counter0|add:total_analyzed|add:"-9" }}</span>
+                                </td>
+                                <td class="px-4 py-3.5">
+                                    <div class="flex items-center gap-3">
+                                        <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-surface-800 to-surface-900 border border-white/5 flex items-center justify-center text-xs font-bold text-danger-400">
+                                            {{ item.base_asset|slice:":3" }}
+                                        </div>
+                                        <div>
+                                            <p class="font-medium text-white">{{ item.base_asset }}</p>
+                                            <p class="text-xs text-muted-500">{{ item.quote_asset }}</p>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td class="px-4 py-3.5 text-right font-mono text-sm text-white">{{ item.last_price|floatformat:8 }}</td>
+                                <td class="px-4 py-3.5 text-right">
+                                    <span class="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-danger-500/10 text-danger-400 font-mono text-sm">
+                                        <i class="fas fa-arrow-down text-xs" aria-hidden="true"></i>
+                                        {{ item.price_change_percent|floatformat:2 }}%
+                                    </span>
+                                </td>
+                                <td class="px-4 py-3.5 text-right font-mono text-sm text-muted-400 hidden md:table-cell">{{ item.volatility|floatformat:2 }}%</td>
+                                <td class="px-4 py-3.5 text-right font-mono text-sm text-muted-400 hidden lg:table-cell">${{ item.quote_volume|floatformat:0 }}</td>
+                                <td class="px-4 py-3.5 text-right font-mono text-sm font-semibold text-danger-400">{{ item.performance_score|floatformat:2 }}</td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="7" class="px-6 py-12 text-center text-muted-500">No data available</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- Most Volatile Table -->
+        <section class="animate-slide-up" style="animation-delay: 0.4s;">
+            <div class="glass-strong rounded-2xl overflow-hidden">
+                <div class="px-6 py-4 border-b border-white/5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                    <div class="flex items-center gap-3">
+                        <div class="p-2 bg-warning-500/10 rounded-xl text-warning-400">
+                            <i class="fas fa-wave-square text-lg" aria-hidden="true"></i>
+                        </div>
+                        <div>
+                            <h2 class="font-semibold text-white">Most Volatile (30d)</h2>
+                            <p class="text-xs text-muted-500">Highest daily price range volatility — trading opportunities</p>
+                        </div>
+                    </div>
+                    <span class="text-xs text-muted-500 hidden sm:block">{{ top_volatile|length }} coins</span>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="w-full" role="table" aria-label="Most volatile coins">
+                        <thead>
+                            <tr class="border-b border-white/5 bg-surface-900/50">
+                                <th class="px-4 py-3.5 text-left text-xs font-semibold text-muted-500 uppercase tracking-wider w-16">Rank</th>
+                                <th class="px-4 py-3.5 text-left text-xs font-semibold text-muted-500 uppercase tracking-wider">Pair</th>
+                                <th class="px-4 py-3.5 text-right text-xs font-semibold text-muted-500 uppercase tracking-wider tabular-nums font-mono">Price</th>
+                                <th class="px-4 py-3.5 text-right text-xs font-semibold text-muted-500 uppercase tracking-wider tabular-nums font-mono">24h Change</th>
+                                <th class="px-4 py-3.5 text-right text-xs font-semibold text-muted-500 uppercase tracking-wider tabular-nums font-mono">Volatility (30d)</th>
+                                <th class="px-4 py-3.5 text-right text-xs font-semibold text-muted-500 uppercase tracking-wider tabular-nums font-mono hidden lg:table-cell">Volume (24h)</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-white/5">
+                            {% for item in top_volatile %}
+                            <tr class="hover:bg-white/2.5 transition-colors">
+                                <td class="px-4 py-3.5">
+                                    <span class="rank-badge rank-{% if forloop.counter <= 3 %}{{ forloop.counter }}{% else %}other{% endif %}">{{ forloop.counter }}</span>
+                                </td>
+                                <td class="px-4 py-3.5">
+                                    <div class="flex items-center gap-3">
+                                        <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-surface-800 to-surface-900 border border-white/5 flex items-center justify-center text-xs font-bold text-warning-400">
+                                            {{ item.base_asset|slice:":3" }}
+                                        </div>
+                                        <div>
+                                            <p class="font-medium text-white">{{ item.base_asset }}</p>
+                                            <p class="text-xs text-muted-500">{{ item.quote_asset }}</p>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td class="px-4 py-3.5 text-right font-mono text-sm text-white">{{ item.last_price|floatformat:8 }}</td>
+                                <td class="px-4 py-3.5 text-right">
+                                    <span class="inline-flex items-center gap-1 px-2 py-1 rounded-lg {% if item.price_change_percent >= 0 %}bg-brand-500/10 text-brand-400{% else %}bg-danger-500/10 text-danger-400{% endif %} font-mono text-sm">
+                                        <i class="fas fa-{% if item.price_change_percent >= 0 %}arrow-up{% else %}arrow-down{% endif %} text-xs" aria-hidden="true"></i>
+                                        {% if item.price_change_percent >= 0 %}+{% endif %}{{ item.price_change_percent|floatformat:2 }}%
+                                    </span>
+                                </td>
+                                <td class="px-4 py-3.5 text-right font-mono text-sm font-semibold text-warning-400">{{ item.volatility|floatformat:2 }}%</td>
+                                <td class="px-4 py-3.5 text-right font-mono text-sm text-muted-400 hidden lg:table-cell">${{ item.quote_volume|floatformat:0 }}</td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="6" class="px-6 py-12 text-center text-muted-500">No data available</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- Footer -->
+        <footer class="mt-12 pt-6 border-t border-white/5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 text-xs text-muted-500">
+            <p>Data: <a href="https://www.binance.com" target="_blank" rel="noopener" class="text-brand-400 hover:underline">Binance API</a> • Performance score = 24h change × (1 + volatility factor)</p>
+            <p class="flex items-center gap-2">
+                <span class="w-2 h-2 rounded-full bg-brand-500 animate-pulse-soft" aria-hidden="true"></span>
+                Auto-refresh available via API
+            </p>
+        </footer>
+    </main>
+
+    <!-- Toast Container -->
+    <div id="toast-container" class="fixed bottom-6 right-6 z-50 flex flex-col gap-2 pointer-events-none" aria-live="polite" aria-label="Notifications"></div>
+
+    <!-- JavaScript -->
+    <script>
+        const fmt = {
+            price: (v) => v?.toLocaleString('en-US', { minimumFractionDigits: 8, maximumFractionDigits: 8 }) ?? '--',
+            priceShort: (v) => v?.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) ?? '--',
+            volume: (v) => {
+                if (v == null || isNaN(v)) return '--';
+                if (v >= 1e9) return (v / 1e9).toFixed(2) + 'B';
+                if (v >= 1e6) return (v / 1e6).toFixed(2) + 'M';
+                if (v >= 1e3) return (v / 1e3).toFixed(2) + 'K';
+                return v.toLocaleString('en-US', { maximumFractionDigits: 2 });
+            },
+        };
+
+        const $ = (sel, ctx = document) => ctx.querySelector(sel);
+        const $$ = (sel, ctx = document) => Array.from(ctx.querySelectorAll(sel));
+
+        function showToast(message, type = 'info', duration = 3000) {
+            const container = $('#toast-container');
+            const toast = document.createElement('div');
+            const configs = {
+                success: { bg: 'bg-brand-600', icon: 'fa-check-circle', border: 'border-brand-500' },
+                error: { bg: 'bg-danger-600', icon: 'fa-times-circle', border: 'border-danger-500' },
+                warning: { bg: 'bg-warning-600', icon: 'fa-exclamation-triangle', border: 'border-warning-500' },
+                info: { bg: 'bg-blue-600', icon: 'fa-info-circle', border: 'border-blue-500' },
+            };
+            const c = configs[type] || configs.info;
+
+            toast.className = `pointer-events-auto glass-strong border ${c.border}/30 ${c.bg} text-white px-4 py-3 rounded-xl shadow-xl flex items-center gap-3 min-w-[280px] max-w-sm animate-slide-up`;
+            toast.innerHTML = `
+                <i class="fas ${c.icon} text-lg flex-shrink-0"></i>
+                <span class="text-sm font-medium">${message}</span>
+                <button class="ml-auto text-white/70 hover:text-white transition-colors" aria-label="Dismiss"><i class="fas fa-times text-xs"></i></button>
+            `;
+            toast.querySelector('button').onclick = () => dismissToast(toast);
+            container.appendChild(toast);
+            setTimeout(() => dismissToast(toast), duration);
+        }
+
+        function dismissToast(toast) {
+            toast.style.animation = 'fadeIn 0.2s ease-out reverse';
+            setTimeout(() => toast.remove(), 200);
+        }
+
+        function updateLastUpdateNav() {
+            const now = new Date();
+            const timeStr = now.toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' });
+            $('#last-update-nav').textContent = `Updated: ${timeStr}`;
+        }
+
+        async function fetchTopFlopData() {
+            const btn = $('#refresh-topflop');
+            const icon = $('#refresh-topflop-icon');
+            if (btn) {
+                btn.disabled = true;
+                btn.classList.add('opacity-50', 'cursor-wait');
+                icon?.classList.add('fa-spin');
+            }
+
+            try {
+                const resp = await fetch('{% url "monitoring:api_top_flop" %}', {
+                    headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' },
+                    credentials: 'same-origin',
+                });
+                if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+                const result = await resp.json();
+
+                if (result.success) {
+                    // Reload page to show new data (simple approach)
+                    window.location.reload();
+                } else {
+                    throw new Error(result.error || 'Failed to fetch');
+                }
+            } catch (err) {
+                console.error('TopFlop fetch error:', err);
+                showToast(`Failed to refresh: ${err.message}`, 'error');
+            } finally {
+                if (btn) {
+                    btn.disabled = false;
+                    btn.classList.remove('opacity-50', 'cursor-wait');
+                    icon?.classList.remove('fa-spin');
+                }
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            updateLastUpdateNav();
+            setInterval(updateLastUpdateNav, 1000);
+            $('#refresh-topflop')?.addEventListener('click', fetchTopFlopData);
+            console.log('🏆 Top & Flop page initialized');
+        });
+    </script>
+</body>
+</html>

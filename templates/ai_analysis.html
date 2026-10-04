@@ -1,0 +1,544 @@
+{% load static humanize %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Análisis técnico con IA (Gemini) para criptomonedas - Binance">
+    <title>{{ page_title|default:"Análisis IA — Crypto Monitor" }}</title>
+
+    <!-- Tailwind CSS via CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- Tailwind Config -->
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        surface: {
+                            50: '#f8fafc',
+                            100: '#f1f5f9',
+                            800: '#1e293b',
+                            900: '#0f172a',
+                            950: '#020617',
+                        },
+                        brand: {
+                            50: '#f0fdf4',
+                            100: '#dcfce7',
+                            400: '#4ade80',
+                            500: '#22c55e',
+                            600: '#16a34a',
+                            700: '#15803d',
+                            800: '#166534',
+                            900: '#14532d',
+                        },
+                        danger: {
+                            50: '#fef2f2',
+                            100: '#fee2e2',
+                            400: '#f87171',
+                            500: '#ef4444',
+                            600: '#dc2626',
+                            700: '#b91c1c',
+                        },
+                        warning: {
+                            50: '#fffbeb',
+                            100: '#fef3c7',
+                            400: '#fbbf24',
+                            500: '#f59e0b',
+                            600: '#d97706',
+                        },
+                        purple: {
+                            50: '#faf5ff',
+                            100: '#f3e8ff',
+                            400: '#c084fc',
+                            500: '#a855f7',
+                            600: '#9333ea',
+                            700: '#7e22ce',
+                        },
+                        muted: {
+                            400: '#94a3b8',
+                            500: '#64748b',
+                            600: '#475569',
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'ui-sans-serif', 'system-ui', 'sans-serif'],
+                        mono: ['JetBrains Mono', 'ui-monospace', 'SFMono-Regular', 'monospace'],
+                    },
+                    animation: {
+                        'fade-in': 'fadeIn 0.3s ease-out',
+                        'slide-up': 'slideUp 0.4s ease-out',
+                        'slide-down': 'slideDown 0.3s ease-out',
+                        'pulse-soft': 'pulseSoft 2s ease-in-out infinite',
+                        'shimmer': 'shimmer 1.5s ease-in-out infinite',
+                    },
+                    keyframes: {
+                        fadeIn: { '0%': { opacity: '0' }, '100%': { opacity: '1' } },
+                        slideUp: { '0%': { opacity: '0', transform: 'translateY(10px)' }, '100%': { opacity: '1', transform: 'translateY(0)' } },
+                        slideDown: { '0%': { opacity: '0', transform: 'translateY(-10px)' }, '100%': { opacity: '1', transform: 'translateY(0)' } },
+                        pulseSoft: { '0%, 100%': { opacity: '1' }, '50%': { opacity: '0.6' } },
+                        shimmer: { '0%': { backgroundPosition: '-200% 0' }, '100%': { backgroundPosition: '200% 0' } },
+                    },
+                    backgroundImage: {
+                        'gradient-radial': 'radial-gradient(var(--tw-gradient-stops))',
+                        'shimmer-gradient': 'linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent)',
+                    },
+                    boxShadow: {
+                        'glow-green': '0 0 20px rgba(34, 197, 94, 0.3)',
+                        'glow-red': '0 0 20px rgba(239, 68, 68, 0.3)',
+                        'glow-purple': '0 0 20px rgba(168, 85, 247, 0.3)',
+                        'inner-glow': 'inset 0 1px 0 rgba(255,255,255,0.05)',
+                    },
+                }
+            }
+        }
+    </script>
+
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+
+    <style>
+        .glass {
+            background: rgba(15, 23, 42, 0.7);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(148, 163, 184, 0.1);
+        }
+        .glass-strong {
+            background: rgba(15, 23, 42, 0.85);
+            backdrop-filter: blur(24px);
+            -webkit-backdrop-filter: blur(24px);
+            border: 1px solid rgba(148, 163, 184, 0.15);
+        }
+        .skeleton {
+            background: linear-gradient(90deg, #1e293b 25%, #334155 50%, #1e293b 75%);
+            background-size: 200% 100%;
+            animation: shimmer 1.5s ease-in-out infinite;
+            border-radius: 4px;
+        }
+        @media (prefers-reduced-motion: reduce) {
+            * { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+        }
+        ::selection { background: rgba(168, 85, 247, 0.3); color: white; }
+    </style>
+</head>
+<body class="bg-surface-950 text-surface-50 font-sans antialiased min-h-screen">
+    <!-- Background ambient glow -->
+    <div class="fixed inset-0 pointer-events-none overflow-hidden" aria-hidden="true">
+        <div class="absolute top-1/4 left-1/4 w-[600px] h-[600px] rounded-full bg-purple-500/5 blur-[200px]"></div>
+        <div class="absolute bottom-1/4 right-1/4 w-[500px] h-[500px] rounded-full bg-purple-900/30 blur-[200px]"></div>
+        <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] rounded-full bg-purple-800/10 blur-[300px]"></div>
+    </div>
+
+    <!-- Navbar -->
+    <nav class="relative z-10 glass-strong border-b border-white/5 sticky top-0">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex items-center justify-between h-16 lg:h-18">
+                <!-- Brand -->
+                <div class="flex items-center gap-3">
+                    <div class="relative p-2 bg-gradient-to-br from-purple-500 to-purple-700 rounded-xl shadow-lg shadow-purple-500/20">
+                        <i class="fas fa-robot text-white text-xl" aria-hidden="true"></i>
+                        <span class="absolute inset-0 rounded-xl bg-purple-500/50 animate-pulse-soft" aria-hidden="true"></span>
+                    </div>
+                    <div>
+                        <h1 class="text-lg lg:text-xl font-bold tracking-tight text-white">Crypto Monitor</h1>
+                        <p class="text-xs text-muted-400 font-medium">AI Analysis powered by Gemini</p>
+                    </div>
+                </div>
+
+                <!-- Navigation -->
+                <div class="hidden lg:flex items-center gap-1 ml-8">
+                    <a href="{% url 'monitoring:dashboard' %}" class="px-3 py-2 text-sm font-medium text-muted-400 hover:text-white hover:bg-white/5 rounded-lg transition-colors">
+                        <i class="fas fa-home mr-1.5"></i> Dashboard
+                    </a>
+                    <a href="{% url 'monitoring:top_flop' %}" class="px-3 py-2 text-sm font-medium text-muted-400 hover:text-brand-400 hover:bg-brand-500/10 rounded-lg transition-colors">
+                        <i class="fas fa-trophy mr-1.5"></i> Top & Flop
+                    </a>
+                    <a href="{% url 'monitoring:ai_analysis' %}" class="px-3 py-2 text-sm font-medium text-white bg-purple-500/10 rounded-lg" aria-current="page">
+                        <i class="fas fa-robot mr-1.5"></i> IA
+                    </a>
+                </div>
+
+                <!-- Right controls -->
+                <div class="flex items-center gap-3">
+                    <a href="{% url 'monitoring:api_ai_analysis' %}" target="_blank" rel="noopener" class="hidden sm:flex items-center gap-1.5 px-3 py-2 text-xs font-medium text-muted-400 hover:text-purple-400 transition-colors glass rounded-lg border border-white/5 hover:border-purple-500/20">
+                        <i class="fas fa-code text-xs"></i>
+                        <span>API JSON</span>
+                    </a>
+                    <span class="hidden sm:block px-3 py-2 text-xs text-muted-500 glass rounded-lg border border-white/5" id="last-update-nav">Updated: --:--:--</span>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Mobile Search Bar -->
+    <div class="md:hidden px-4 py-3 border-b border-white/5 bg-surface-950/80 backdrop-blur-sm sticky top-16 z-40">
+        <form action="{% url 'monitoring:search' %}" method="GET" class="relative max-w-md mx-auto">
+            <label for="mobile-search" class="sr-only">Buscar criptomoneda</label>
+            <input
+                type="search"
+                id="mobile-search"
+                name="q"
+                placeholder="Buscar criptomoneda (ej: BTC, ETH, SOL)..."
+                class="w-full px-4 py-2 pl-10 bg-white/5 border border-white/10 rounded-xl text-white placeholder:text-muted-500 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent transition-all"
+                autocomplete="off"
+                aria-label="Buscar criptomoneda por símbolo o nombre"
+            >
+            <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-muted-500" aria-hidden="true"></i>
+        </form>
+    </div>
+
+    <!-- Main Content -->
+    <main class="relative z-10 max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-6 lg:py-8">
+        <!-- Page Header -->
+        <header class="mb-10 animate-slide-down">
+            <div class="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-6">
+                <div>
+                    <div class="flex items-center gap-3 mb-2">
+                        <div class="p-3 bg-gradient-to-br from-purple-500 to-purple-600 rounded-xl">
+                            <i class="fas fa-brain text-white text-2xl" aria-hidden="true"></i>
+                        </div>
+                        <div>
+                            <h1 class="text-3xl lg:text-4xl font-bold tracking-tight text-white">Análisis con IA</h1>
+                            <p class="text-sm text-muted-400">Señales de trading generadas por Gemini AI</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <!-- Search Form -->
+        <section class="mb-8 animate-slide-up" style="animation-delay: 0.1s;">
+            <form action="{% url 'monitoring:ai_analysis' %}" method="POST" id="ai-analysis-form" class="glass-strong rounded-2xl p-5 border border-white/5">
+                {% csrf_token %}
+                <div class="flex flex-col sm:flex-row gap-3">
+                    <label for="ai-symbol" class="sr-only">Símbolo de criptomoneda</label>
+                    <div class="relative flex-1">
+                        <input
+                            type="text"
+                            id="ai-symbol"
+                            name="symbol"
+                            value="{{ symbol|default:'' }}"
+                            placeholder="Ej: BTC, ETH, SOL, DOGE, ADA..."
+                            class="w-full px-5 py-3.5 pl-12 bg-white/5 border border-white/10 rounded-xl text-white placeholder:text-muted-500 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all text-base"
+                            autocomplete="off"
+                            aria-label="Símbolo de criptomoneda para análisis"
+                            required
+                        >
+                        <i class="fas fa-robot absolute left-4 top-1/2 -translate-y-1/2 text-muted-400 text-xl" aria-hidden="true"></i>
+                    </div>
+                    <button type="submit" id="ai-submit-btn" class="px-6 py-3.5 bg-gradient-to-r from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700 text-white font-semibold rounded-xl transition-all duration-200 flex items-center gap-2 shadow-lg shadow-purple-500/25 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-500 focus-visible:ring-offset-2 focus-visible:ring-offset-surface-950">
+                        <i class="fas fa-brain" id="ai-submit-icon"></i>
+                        <span id="ai-submit-text">Analizar con IA</span>
+                    </button>
+                </div>
+                <p class="text-xs text-muted-500 mt-3 text-center">Analiza 500+ pares USDT • Datos técnicos: RSI, tendencia, soporte/resistencia, volatilidad</p>
+            </form>
+            
+            <!-- Loading State (hidden by default) -->
+            <div id="ai-loading" class="hidden mt-6 animate-slide-up">
+                <div class="glass-strong rounded-2xl p-8 text-center border border-purple-500/20">
+                    <div class="w-16 h-16 mx-auto mb-4 rounded-full border-4 border-purple-500/30 border-t-purple-500 animate-spin"></div>
+                    <h3 class="text-lg font-semibold text-white mb-2">Generando análisis con IA...</h3>
+                    <p class="text-muted-400">Gemini está analizando datos técnicos de Binance</p>
+                    <div class="mt-4 flex justify-center gap-1">
+                        <div class="w-2 h-2 rounded-full bg-purple-500 animate-bounce" style="animation-delay: 0ms"></div>
+                        <div class="w-2 h-2 rounded-full bg-purple-500 animate-bounce" style="animation-delay: 150ms"></div>
+                        <div class="w-2 h-2 rounded-full bg-purple-500 animate-bounce" style="animation-delay: 300ms"></div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        {% if error %}
+        <!-- Error State -->
+        <section class="animate-slide-up">
+            <div class="glass-strong rounded-2xl p-8 text-center border border-danger-500/20">
+                <div class="w-16 h-16 mx-auto mb-4 rounded-2xl bg-danger-500/10 flex items-center justify-center">
+                    <i class="fas fa-exclamation-triangle text-danger-400 text-3xl" aria-hidden="true"></i>
+                </div>
+                <h2 class="text-xl font-semibold text-white mb-2">Error en el análisis</h2>
+                <p class="text-muted-400 mb-6 max-w-md mx-auto">{{ error }}</p>
+            </div>
+        </section>
+
+        {% elif analysis %}
+        <!-- Analysis Results -->
+        <section class="animate-slide-up" style="animation-delay: 0.2s;">
+            <!-- Signal Card -->
+            <div class="glass-strong rounded-2xl overflow-hidden border border-white/5 mb-8">
+                <div class="p-6 border-b border-white/5">
+                    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                        <div class="flex items-center gap-4">
+                            <div class="w-16 h-16 rounded-2xl bg-gradient-to-br from-surface-800 to-surface-900 border border-white/5 flex items-center justify-center text-2xl font-bold {% if coin %}{{ coin.base_asset|slice:":3" }}{% else %}???{% endif %} text-purple-400">
+                                {% if coin %}{{ coin.base_asset|slice:":3" }}{% else %}???{% endif %}
+                            </div>
+                            <div>
+                                <h2 class="text-2xl lg:text-3xl font-bold text-white">
+                                    {% if coin %}{{ coin.base_asset }} / {{ coin.quote_asset }}{% else %}{{ symbol }}{% endif %}
+                                </h2>
+                                <p class="text-muted-400 mt-1">Análisis técnico generado por Gemini AI</p>
+                            </div>
+                        </div>
+                        <div class="text-right sm:ml-auto">
+                            <!-- Signal Badge -->
+                            <span class="inline-flex items-center gap-2 px-4 py-2 rounded-xl font-semibold text-white {% if analysis.signal == 'STRONG_BUY' %}bg-brand-600{% elif analysis.signal == 'BUY' %}bg-brand-500{% elif analysis.signal == 'HOLD' %}bg-warning-500{% elif analysis.signal == 'SELL' %}bg-danger-500{% elif analysis.signal == 'STRONG_SELL' %}bg-danger-600{% else %}bg-purple-500{% endif %}">
+                                <i class="fas {% if 'BUY' in analysis.signal %}fa-arrow-up{% elif 'SELL' in analysis.signal %}fa-arrow-down{% else %}fa-minus{% endif %}" aria-hidden="true"></i>
+                                {{ analysis.signal }}
+                            </span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="p-6 grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <!-- Confidence -->
+                    <div class="glass rounded-xl p-4 border border-white/5 text-center">
+                        <p class="text-xs text-muted-500 uppercase tracking-wider mb-1">Confianza</p>
+                        <div class="flex items-center justify-center gap-2">
+                            <span class="text-3xl font-bold text-white tabular-nums">{{ analysis.confidence }}%</span>
+                            <div class="w-24 h-2 bg-muted-600 rounded-full overflow-hidden">
+                                <div class="h-full bg-gradient-to-r from-purple-500 to-purple-400 rounded-full" style="width: {{ analysis.confidence }}%"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Risk Level -->
+                    <div class="glass rounded-xl p-4 border border-white/5 text-center">
+                        <p class="text-xs text-muted-500 uppercase tracking-wider mb-1">Nivel de Riesgo</p>
+                        <span class="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-sm font-semibold {% if analysis.risk_level == 'LOW' %}bg-brand-500/10 text-brand-400{% elif analysis.risk_level == 'MEDIUM' %}bg-warning-500/10 text-warning-400{% else %}bg-danger-500/10 text-danger-400{% endif %}">
+                            <i class="fas fa-shield-alt text-xs" aria-hidden="true"></i>
+                            {{ analysis.risk_level }}
+                        </span>
+                    </div>
+
+                    <!-- Summary -->
+                    <div class="glass rounded-xl p-4 border border-white/5 text-center md:col-span-3">
+                        <p class="text-xs text-muted-500 uppercase tracking-wider mb-1">Resumen</p>
+                        <p class="text-white">{{ analysis.summary }}</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Details -->
+            <div class="glass-strong rounded-2xl overflow-hidden border border-white/5 mb-8">
+                <div class="px-6 py-4 border-b border-white/5">
+                    <h3 class="font-semibold text-white flex items-center gap-2">
+                        <i class="fas fa-list-check text-purple-400"></i>
+                        Puntos Clave del Análisis
+                    </h3>
+                </div>
+                <div class="p-6">
+                    <ul class="space-y-3">
+                        {% for detail in analysis.details %}
+                        <li class="flex items-start gap-3 p-3 glass rounded-xl border border-white/5">
+                            <div class="w-6 h-6 rounded-full bg-purple-500/20 flex items-center justify-center flex-shrink-0 mt-0.5">
+                                <i class="fas fa-check text-purple-400 text-xs" aria-hidden="true"></i>
+                            </div>
+                            <p class="text-sm text-white leading-relaxed">{{ detail }}</p>
+                        </li>
+                        {% empty %}
+                        <li class="text-center text-muted-500 py-4">No hay detalles disponibles</li>
+                        {% endfor %}
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Trading Levels -->
+            {% if analysis.entry_zone != 'N/A' or analysis.stop_loss != 'N/A' or analysis.take_profit != 'N/A' %}
+            <div class="glass-strong rounded-2xl overflow-hidden border border-white/5 mb-8">
+                <div class="px-6 py-4 border-b border-white/5">
+                    <h3 class="font-semibold text-white flex items-center gap-2">
+                        <i class="fas fa-target text-warning-400"></i>
+                        Niveles de Trading Sugeridos
+                    </h3>
+                </div>
+                <div class="p-6 grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div class="glass rounded-xl p-4 border border-white/5">
+                        <p class="text-xs text-muted-500 uppercase tracking-wider mb-1">Zona de Entrada</p>
+                        <p class="font-mono text-white text-lg">{{ analysis.entry_zone }}</p>
+                    </div>
+                    <div class="glass rounded-xl p-4 border border-white/5">
+                        <p class="text-xs text-muted-500 uppercase tracking-wider mb-1">Stop Loss</p>
+                        <p class="font-mono text-danger-400 text-lg">{{ analysis.stop_loss }}</p>
+                    </div>
+                    <div class="glass rounded-xl p-4 border border-white/5">
+                        <p class="text-xs text-muted-500 uppercase tracking-wider mb-1">Take Profit</p>
+                        <p class="font-mono text-brand-400 text-lg">{{ analysis.take_profit }}</p>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Market Data Used -->
+            {% if coin %}
+            <details class="glass-strong rounded-2xl border border-white/5 mb-8">
+                <summary class="p-5 cursor-pointer flex items-center justify-between select-none">
+                    <h3 class="font-semibold text-white flex items-center gap-2">
+                        <i class="fas fa-chart-bar text-muted-400"></i>
+                        Datos de Mercado Utilizados
+                    </h3>
+                    <i class="fas fa-chevron-down text-muted-400 transition-transform" id="market-data-chevron"></i>
+                </summary>
+                <div class="px-5 pb-5 border-t border-white/5" id="market-data-content">
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                        <div class="glass rounded-xl p-4 border border-white/5">
+                            <p class="text-xs text-muted-500 mb-1">Precio Actual</p>
+                            <p class="font-mono text-white">{{ coin.last_price|floatformat:8 }}</p>
+                        </div>
+                        <div class="glass rounded-xl p-4 border border-white/5">
+                            <p class="text-xs text-muted-500 mb-1">Cambio 24h</p>
+                            <p class="font-mono {% if coin.price_change_percent >= 0 %}text-brand-400{% else %}text-danger-400{% endif %}">{{ coin.price_change_percent|floatformat:2 }}%</p>
+                        </div>
+                        <div class="glass rounded-xl p-4 border border-white/5">
+                            <p class="text-xs text-muted-500 mb-1">Volumen 24h</p>
+                            <p class="font-mono text-white">${{ coin.quote_volume|floatformat:0 }}</p>
+                        </div>
+                        <div class="glass rounded-xl p-4 border border-white/5">
+                            <p class="text-xs text-muted-500 mb-1">Volatilidad (30d)</p>
+                            <p class="font-mono text-warning-400">{{ coin.volatility|floatformat:2 }}%</p>
+                        </div>
+                        <div class="glass rounded-xl p-4 border border-white/5 md:col-span-2">
+                            <p class="text-xs text-muted-500 mb-1">Rango 24h</p>
+                            <p class="font-mono text-white">${{ coin.low_price|floatformat:8 }} - ${{ coin.high_price|floatformat:8 }}</p>
+                        </div>
+                        <div class="glass rounded-xl p-4 border border-white/5">
+                            <p class="text-xs text-muted-500 mb-1">RSI (14)</p>
+                            <p class="font-mono {% if coin.rsi and coin.rsi > 70 %}text-danger-400{% elif coin.rsi and coin.rsi < 30 %}text-brand-400{% else %}text-white{% endif %}">{{ coin.rsi|floatformat:1|default:"N/A" }}</p>
+                        </div>
+                        <div class="glass rounded-xl p-4 border border-white/5">
+                            <p class="text-xs text-muted-500 mb-1">Tendencia</p>
+                            <p class="font-mono {% if coin.trend == 'Bullish' %}text-brand-400{% else %}text-danger-400{% endif %}">{{ coin.trend }}</p>
+                        </div>
+                        <div class="glass rounded-xl p-4 border border-white/5 md:col-span-2">
+                            <p class="text-xs text-muted-500 mb-1">Soporte / Resistencia</p>
+                            <p class="font-mono text-white">${{ coin.support|floatformat:8 }} / ${{ coin.resistance|floatformat:8 }}</p>
+                        </div>
+                    </div>
+                </div>
+            </details>
+            {% endif %}
+
+            <!-- Disclaimer -->
+            <div class="glass rounded-xl p-4 border border-white/5 mb-8">
+                <div class="flex items-start gap-3">
+                    <i class="fas fa-info-circle text-warning-400 mt-0.5" aria-hidden="true"></i>
+                    <div class="text-xs text-muted-400">
+                        <p class="font-medium text-white mb-1">Descargo de responsabilidad</p>
+                        <p>Este análisis es generado por IA (Gemini) con fines educativos e informativos. No constituye asesoramiento financiero. Los mercados de criptomonedas son altamente volátiles y riesgosos. Realice su propia investigación (DYOR) y consulte a un asesor financiero antes de tomar decisiones de inversión.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        {% else %}
+        <!-- Empty State -->
+        <section class="animate-slide-up">
+            <div class="glass-strong rounded-2xl p-12 md:p-16 text-center border border-white/5">
+                <div class="w-24 h-24 mx-auto mb-6 rounded-2xl bg-gradient-to-br from-purple-500 to-purple-600 flex items-center justify-center">
+                    <i class="fas fa-brain text-white text-4xl" aria-hidden="true"></i>
+                </div>
+                <h2 class="text-2xl lg:text-3xl font-bold text-white mb-3">Análisis Inteligente con IA</h2>
+                <p class="text-muted-400 mb-8 max-w-xl mx-auto">Ingresa el símbolo de cualquier criptomoneda (ej: BTC, ETH, SOL) y Gemini AI analizará sus datos técnicos de Binance para generar una señal de trading con niveles de entrada, stop loss y take profit.</p>
+                <form action="{% url 'monitoring:ai_analysis' %}" method="POST" class="flex flex-col sm:flex-row gap-3 justify-center max-w-md mx-auto">
+                    {% csrf_token %}
+                    <input type="text" name="symbol" placeholder="Ej: BTC, ETH, SOL..." class="flex-1 px-5 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder:text-muted-500 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent text-lg" autocomplete="off" required>
+                    <button type="submit" class="px-8 py-3 bg-gradient-to-r from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700 text-white font-semibold rounded-xl transition-colors text-lg">
+                        <i class="fas fa-brain mr-2"></i> Analizar
+                    </button>
+                </form>
+            </div>
+        </section>
+        {% endif %}
+    </main>
+
+    <!-- Footer -->
+    <footer class="relative z-10 mt-12 pt-6 border-t border-white/5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 text-xs text-muted-500 px-4 sm:px-6 lg:px-8 pb-8">
+        <p>Data: <a href="https://www.binance.com" target="_blank" rel="noopener" class="text-brand-400 hover:underline">Binance API</a> • AI: <a href="https://ai.google.dev/gemini-api" target="_blank" rel="noopener" class="text-purple-400 hover:underline">Gemini</a></p>
+        <p class="flex items-center gap-2">
+            <span class="w-2 h-2 rounded-full bg-purple-500 animate-pulse-soft" aria-hidden="true"></span>
+            Powered by Gemini 1.5 Flash
+        </p>
+    </footer>
+
+    <!-- Toast Container -->
+    <div id="toast-container" class="fixed bottom-6 right-6 z-50 flex flex-col gap-2 pointer-events-none" aria-live="polite" aria-label="Notifications"></div>
+
+    <!-- JavaScript -->
+    <script>
+        const $ = (sel, ctx = document) => ctx.querySelector(sel);
+        const $$ = (sel, ctx = document) => Array.from(ctx.querySelectorAll(sel));
+
+        function showToast(message, type = 'info', duration = 3000) {
+            const container = $('#toast-container');
+            const toast = document.createElement('div');
+            const configs = {
+                success: { bg: 'bg-brand-600', icon: 'fa-check-circle', border: 'border-brand-500' },
+                error: { bg: 'bg-danger-600', icon: 'fa-times-circle', border: 'border-danger-500' },
+                warning: { bg: 'bg-warning-600', icon: 'fa-exclamation-triangle', border: 'border-warning-500' },
+                info: { bg: 'bg-blue-600', icon: 'fa-info-circle', border: 'border-blue-500' },
+            };
+            const c = configs[type] || configs.info;
+
+            toast.className = `pointer-events-auto glass-strong border ${c.border}/30 ${c.bg} text-white px-4 py-3 rounded-xl shadow-xl flex items-center gap-3 min-w-[280px] max-w-sm animate-slide-up`;
+            toast.innerHTML = `
+                <i class="fas ${c.icon} text-lg flex-shrink-0"></i>
+                <span class="text-sm font-medium">${message}</span>
+                <button class="ml-auto text-white/70 hover:text-white transition-colors" aria-label="Dismiss"><i class="fas fa-times text-xs"></i></button>
+            `;
+            toast.querySelector('button').onclick = () => dismissToast(toast);
+            container.appendChild(toast);
+            setTimeout(() => dismissToast(toast), duration);
+        }
+
+        function dismissToast(toast) {
+            toast.style.animation = 'fadeIn 0.2s ease-out reverse';
+            setTimeout(() => toast.remove(), 200);
+        }
+
+        function updateLastUpdateNav() {
+            const now = new Date();
+            const timeStr = now.toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' });
+            $('#last-update-nav').textContent = `Updated: ${timeStr}`;
+        }
+
+        // Details toggle
+        const details = $('details');
+        const chevron = $('#market-data-chevron');
+        if (details && chevron) {
+            details.addEventListener('toggle', () => {
+                chevron.style.transform = details.open ? 'rotate(180deg)' : 'rotate(0deg)';
+            });
+        }
+
+        // AI Analysis Form Handler
+        const aiForm = $('#ai-analysis-form');
+        const aiLoading = $('#ai-loading');
+        const aiSubmitBtn = $('#ai-submit-btn');
+        const aiSubmitIcon = $('#ai-submit-icon');
+        const aiSubmitText = $('#ai-submit-text');
+
+        if (aiForm) {
+            aiForm.addEventListener('submit', (e) => {
+                // Show loading state
+                aiForm.classList.add('opacity-50', 'pointer-events-none');
+                aiLoading.classList.remove('hidden');
+                aiSubmitBtn.disabled = true;
+                aiSubmitIcon.classList.remove('fa-brain');
+                aiSubmitIcon.classList.add('fa-spinner', 'fa-spin');
+                aiSubmitText.textContent = 'Analizando...';
+            });
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            updateLastUpdateNav();
+            setInterval(updateLastUpdateNav, 1000);
+            console.log('🤖 AI Analysis page initialized');
+        });
+    </script>
+</body>
+</html>
