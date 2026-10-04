@@ -12,6 +12,7 @@ import time
 from functools import lru_cache
 from typing import Any, Dict, List, Optional
 
+import numpy as np
 import google.generativeai as genai
 from binance.client import Client
 from binance.exceptions import BinanceAPIException, BinanceRequestException
@@ -22,6 +23,16 @@ from django.shortcuts import render
 from django.views import View
 from django.views.decorators.csrf import csrf_exempt
 from django.utils.decorators import method_decorator
+
+# Importar módulo de análisis de confluencia
+from monitoring.analysis.confluence_index import (
+    calculate_all_indicators,
+    calculate_all_indicators,
+    calculate_confluence_index,
+    prepare_klines_dataframe,
+    rank_cryptos_by_confluence,
+)
+import pandas as pd
 
 # Configurar logger para esta app
 logger = logging.getLogger(__name__)
@@ -307,8 +318,9 @@ def analyze_market_performance(client: Client, symbols: List[str]) -> Dict[str, 
 
 def analyze_all_usdt_performance(client: Client) -> Dict[str, Any]:
     """
-    Analiza el rendimiento de TODOS los pares USDT en Binance.
-    Obtiene todos los tickers de una vez, filtra y rankea.
+    Analiza el rendimiento de TODOS los pares USDT en Binance usando el
+    Índice de Confluencia Multicriterio para identificar las mejores
+    oportunidades de compra.
     """
     # Obtener datos de ticker de todos los pares USDT
     all_ticker_data = fetch_all_usdt_tickers(client)
@@ -316,41 +328,78 @@ def analyze_all_usdt_performance(client: Client) -> Dict[str, Any]:
     # Filtrar solo datos válidos con volumen significativo
     valid_data = [d for d in all_ticker_data if not d.get('error') and d['last_price'] > 0 and d['quote_volume'] > 100000]
 
-    # Obtener klines para calcular volatilidad (usar 1d interval, 30 días)
-    # Limitamos a top 50 por volumen para no hacer demasiadas llamadas API
-    top_by_volume = sorted(valid_data, key=lambda x: x['quote_volume'], reverse=True)[:50]
+    # Preparar datos para análisis de confluencia
+    # Limitamos a top 60 por volumen para no hacer demasiadas llamadas API
+    top_by_volume = sorted(valid_data, key=lambda x: x['quote_volume'], reverse=True)[:60]
 
+    crypto_data = []
     for item in top_by_volume:
         try:
-            klines = fetch_klines(client, item['symbol'], '1d', 30)
-            item['volatility'] = calculate_volatility(klines)
-        except Exception:
-            item['volatility'] = 0.0
+            # Obtener klines diarios (60 velas = ~2 meses)
+            klines = fetch_klines(client, item['symbol'], '1d', 60)
+            if klines and len(klines) >= 60:
+                df = prepare_klines_dataframe(klines)
+                crypto_data.append({
+                    'symbol': item['symbol'],
+                    'df': df,
+                    'base_data': item  # Datos base del ticker
+                })
+        except Exception as e:
+            logger.warning(f"Error preparando datos para {item['symbol']}: {e}")
+            continue
 
-    # Para el resto, asignar volatilidad 0 (se ordenarán al final en volatilidad)
-    for item in valid_data:
-        if 'volatility' not in item:
-            item['volatility'] = 0.0
+    # Rankeo por índice de confluencia
+    ranked = rank_cryptos_by_confluence(crypto_data, top_n=20)
 
-    # Ranking combinado: score = price_change_percent * (1 + volatility_factor)
-    for item in valid_data:
-        volatility_factor = min(item['volatility'] / 10, 1.0)  # Cap at 1.0
-        item['performance_score'] = item['price_change_percent'] * (1 + volatility_factor * 0.5)
-        item['volatility_score'] = item['volatility']
+    # Separar en categorías
+    top_potential = []      # Top 10 con mayor confluencia (potencial de compra)
+    top_performers = []     # Top 10 por cambio de precio (rendimiento)
+    top_volatile = []       # Top 10 por volatilidad
 
-    # Top 10 por performance score (mejores)
-    top_performers = sorted(valid_data, key=lambda x: x['performance_score'], reverse=True)[:10]
+    for result in ranked:
+        # Enriquecer con datos base del ticker
+        base = result['base_data']
+        enriched = {
+            'symbol': result['symbol'],
+            'base_asset': result['base_asset'],
+            'quote_asset': 'USDT',
+            'last_price': base['last_price'],
+            'price_change': base['price_change'],
+            'price_change_percent': base['price_change_percent'],
+            'volume': base['volume'],
+            'quote_volume': base['quote_volume'],
+            'high_price': base['high_price'],
+            'low_price': base['low_price'],
+            'open_price': base['open_price'],
+            'count': base['count'],
+            'bid_price': base['bid_price'],
+            'ask_price': base['ask_price'],
+            # Nuevos campos de confluencia
+            'confluence_score': result['confluence_score'],
+            'signal': result['signal'],
+            'recommendation': result['recommendation'],
+            'pillar_scores': result['pillar_scores'],
+            'indicators': result['indicators'],
+            'volatility': base.get('volatility', 0),
+        }
 
-    # Flop 10 por performance score (peores)
-    flop_performers = sorted(valid_data, key=lambda x: x['performance_score'])[:10]
+        # Clasificar
+        if result['signal'] in ['STRONG_BUY', 'BUY']:
+            top_potential.append(enriched)
 
-    # Top 10 por volatilidad pura
-    top_volatile = sorted(valid_data, key=lambda x: x['volatility_score'], reverse=True)[:10]
+    # Top performers por precio (compatibilidad)
+    top_performers = sorted(valid_data, key=lambda x: x['price_change_percent'], reverse=True)[:10]
+    # Top volatile (compatibilidad)
+    top_volatile = sorted(valid_data, key=lambda x: x.get('volatility', 0), reverse=True)[:10]
+
+    # Top 10 potencial de compra (nuevo ranking principal)
+    top_potential = top_potential[:10]
 
     return {
-        'top_performers': top_performers,
-        'flop_performers': flop_performers,
-        'top_volatile': top_volatile,
+        'top_potential': top_potential,        # NUEVO: Top 10 confluencia positiva
+        'top_performers': top_performers,      # Top 10 por precio
+        'flop_performers': [],                 # VACÍO: Ya no mostramos peores
+        'top_volatile': top_volatile,          # Top 10 volatilidad
         'total_analyzed': len(valid_data),
     }
 
@@ -394,8 +443,15 @@ def fetch_ticker_single(client: Client, symbol: str) -> Optional[Dict[str, Any]]
 
 def search_coin_fast(client: Client, query: str) -> Optional[Dict[str, Any]]:
     """
-    Busca una criptomoneda de forma optimizada (solo 1 llamada API).
-    Retorna datos esenciales para análisis IA.
+    Busca una criptomoneda de forma optimizada.
+    Retorna datos completos con TODOS los indicadores técnicos:
+    - EMA 20/50/100/200
+    - RSI 14
+    - Bollinger Bands (20, 2)
+    - Volume Profile (RVOL, trend, up/down volume, VWAP)
+    - Volatilidad, Soporte/Resistencia, Spread
+    
+    Usa cache para optimizar llamadas a API.
     """
     query = query.strip().upper()
     if not query:
@@ -416,50 +472,288 @@ def search_coin_fast(client: Client, query: str) -> Optional[Dict[str, Any]]:
     if not coin_data:
         return None
     
-    # Calcular volatilidad con cache (60 segundos)
+    # Obtener klines diarios para análisis técnico completo (60 velas para EMAs largas)
+    # Cache key para klines (60 segundos)
+    klines_cache_key = f'klines_{symbol}_1d_60'
+    klines = cache.get(klines_cache_key)
+    
+    if not klines:
+        try:
+            klines = fetch_klines(client, symbol, '1d', 60)
+            if klines:
+                cache.set(klines_cache_key, klines, 60)
+        except Exception as e:
+            logger.warning(f"Error fetching klines for {symbol}: {e}")
+            klines = []
+    
+    try:
+        if klines and len(klines) >= 30:
+            # Convertir a DataFrame y calcular TODOS los indicadores
+            df = prepare_klines_dataframe(klines)
+            df = calculate_all_indicators(df)
+        
+        last = df.iloc[-1]
+        prev = df.iloc[-2] if len(df) > 1 else last
+        
+        # --- EMAs ---
+        coin_data['ema_20'] = round(last.get('ema_20', 0), 4) if pd.notna(last.get('ema_20')) else None
+        coin_data['ema_50'] = round(last.get('ema_50', 0), 4) if pd.notna(last.get('ema_50')) else None
+        coin_data['ema_100'] = round(last.get('ema_100', 0), 4) if pd.notna(last.get('ema_100')) else None
+        coin_data['ema_200'] = round(last.get('ema_200', 0), 4) if pd.notna(last.get('ema_200')) else None
+        
+        # Cruces de EMAs (señales)
+        coin_data['ema_20_gt_50'] = last.get('ema_20', 0) > last.get('ema_50', 0)
+        coin_data['ema_50_gt_100'] = last.get('ema_50', 0) > last.get('ema_100', 0)
+        coin_data['ema_100_gt_200'] = last.get('ema_100', 0) > last.get('ema_200', 0)
+        coin_data['price_gt_ema20'] = last['close'] > last.get('ema_20', 0)
+        coin_data['price_gt_ema50'] = last['close'] > last.get('ema_50', 0)
+        
+        # Distancia a EMAs (porcentaje)
+        if last.get('ema_20'):
+            coin_data['dist_ema20_pct'] = round(((last['close'] - last['ema_20']) / last['ema_20']) * 100, 2)
+        if last.get('ema_50'):
+            coin_data['dist_ema50_pct'] = round(((last['close'] - last['ema_50']) / last['ema_50']) * 100, 2)
+        if last.get('ema_200'):
+            coin_data['dist_ema200_pct'] = round(((last['close'] - last['ema_200']) / last['ema_200']) * 100, 2)
+        
+        # Pendientes EMAs (aceleración)
+        coin_data['ema20_slope'] = round(last.get('ema_20', 0) - prev.get('ema_20', 0), 6)
+        coin_data['ema50_slope'] = round(last.get('ema_50', 0) - prev.get('ema_50', 0), 6)
+        
+        # --- RSI 14 ---
+        coin_data['rsi_14'] = round(last.get('rsi_14', 50), 1) if pd.notna(last.get('rsi_14')) else None
+        
+        # Interpretación RSI
+        rsi = last.get('rsi_14', 50)
+        if rsi >= 70:
+            coin_data['rsi_signal'] = 'OVERBOUGHT'
+        elif rsi >= 60:
+            coin_data['rsi_signal'] = 'BULLISH'
+        elif rsi >= 50:
+            coin_data['rsi_signal'] = 'NEUTRAL_BULLISH'
+        elif rsi >= 40:
+            coin_data['rsi_signal'] = 'NEUTRAL_BEARISH'
+        elif rsi >= 30:
+            coin_data['rsi_signal'] = 'OVERSOLD_BOUNCE'
+        else:
+            coin_data['rsi_signal'] = 'OVERSOLD'
+        
+        # RSI trend
+        prev_rsi = prev.get('rsi_14', 50)
+        coin_data['rsi_trend'] = 'RISING' if rsi > prev_rsi else 'FALLING' if rsi < prev_rsi else 'FLAT'
+        
+        # --- BOLLINGER BANDS (20, 2) ---
+        coin_data['bb_middle'] = round(last.get('bb_middle', 0), 4) if pd.notna(last.get('bb_middle')) else None
+        coin_data['bb_upper'] = round(last.get('bb_upper', 0), 4) if pd.notna(last.get('bb_upper')) else None
+        coin_data['bb_lower'] = round(last.get('bb_lower', 0), 4) if pd.notna(last.get('bb_lower')) else None
+        coin_data['bb_bandwidth'] = round(last.get('bb_bandwidth', 0), 4) if pd.notna(last.get('bb_bandwidth')) else None
+        coin_data['bb_percent_b'] = round(last.get('bb_percent_b', 0.5), 3) if pd.notna(last.get('bb_percent_b')) else None
+        
+        # Señales Bollinger
+        pct_b = last.get('bb_percent_b', 0.5)
+        if pct_b >= 1.0:
+            coin_data['bb_signal'] = 'ABOVE_UPPER'
+        elif pct_b >= 0.8:
+            coin_data['bb_signal'] = 'NEAR_UPPER'
+        elif pct_b >= 0.5:
+            coin_data['bb_signal'] = 'UPPER_HALF'
+        elif pct_b >= 0.2:
+            coin_data['bb_signal'] = 'LOWER_HALF'
+        elif pct_b > 0:
+            coin_data['bb_signal'] = 'NEAR_LOWER'
+        else:
+            coin_data['bb_signal'] = 'BELOW_LOWER'
+        
+        # Bandwidth (volatilidad)
+        coin_data['bb_bandwidth_signal'] = 'HIGH_VOL' if last.get('bb_bandwidth', 0) > 0.1 else 'NORMAL_VOL' if last.get('bb_bandwidth', 0) > 0.05 else 'LOW_VOL'
+        
+        # --- VOLUME PROFILE ---
+        coin_data['volume_sma_20'] = round(last.get('volume_sma_20', 0), 2) if pd.notna(last.get('volume_sma_20')) else None
+        coin_data['volume_ema_20'] = round(last.get('volume_ema_20', 0), 2) if pd.notna(last.get('volume_ema_20')) else None
+        coin_data['rvol_20'] = round(last.get('rvol_20', 1), 2) if pd.notna(last.get('rvol_20')) else None
+        coin_data['volume_trend'] = 'RISING' if last.get('volume_trend', 0) > 0 else 'FALLING' if last.get('volume_trend', 0) < 0 else 'FLAT'
+        coin_data['up_volume_20'] = round(last.get('up_volume_20', 0), 2)
+        coin_data['down_volume_20'] = round(last.get('down_volume_20', 0), 2)
+        coin_data['volume_ratio_20'] = round(last.get('volume_ratio_20', 1), 2) if pd.notna(last.get('volume_ratio_20')) else None
+        coin_data['vwap_20'] = round(last.get('vwap_20', 0), 4) if pd.notna(last.get('vwap_20')) else None
+        
+        # RVOL Signal
+        rvol = last.get('rvol_20', 1)
+        if rvol >= 2.0:
+            coin_data['rvol_signal'] = 'VERY_HIGH'
+        elif rvol >= 1.5:
+            coin_data['rvol_signal'] = 'HIGH'
+        elif rvol >= 1.2:
+            coin_data['rvol_signal'] = 'ELEVATED'
+        elif rvol >= 1.0:
+            coin_data['rvol_signal'] = 'NORMAL'
+        else:
+            coin_data['rvol_signal'] = 'LOW'
+        
+        # VWAP Signal
+        vwap = last.get('vwap_20', 0)
+        if vwap and last['close'] > vwap:
+            coin_data['vwap_signal'] = 'ABOVE_VWAP'
+        elif vwap:
+            coin_data['vwap_signal'] = 'BELOW_VWAP'
+        else:
+            coin_data['vwap_signal'] = 'UNKNOWN'
+        
+        # --- VOLATILIDAD Y SOPORTE/RESISTENCIA ---
+        # Volatilidad (30 días)
+        try:
+            vol_klines = fetch_klines(client, symbol, '1d', 30)
+            coin_data['volatility_30d'] = round(calculate_volatility(vol_klines), 2) if vol_klines else 0
+        except Exception:
+            coin_data['volatility_30d'] = 0
+        
+        # Soporte/Resistencia (basado en highs/lows de klines)
+        highs = [k['high'] for k in klines[-20:]]
+        lows = [k['low'] for k in klines[-20:]]
+        if highs and lows:
+            coin_data['resistance_20d'] = max(highs)
+            coin_data['support_20d'] = min(lows)
+            coin_data['range_20d_pct'] = round(((max(highs) - min(lows)) / min(lows)) * 100, 2)
+        
+        # Distancia a soporte/resistencia
+        if coin_data.get('resistance_20d'):
+            coin_data['dist_resistance_pct'] = round(((coin_data['resistance_20d'] - last['close']) / last['close']) * 100, 2)
+        if coin_data.get('support_20d'):
+            coin_data['dist_support_pct'] = round(((last['close'] - coin_data['support_20d']) / last['close']) * 100, 2)
+        
+        # --- SPREAD ---
+        if coin_data.get('ask_price') and coin_data.get('bid_price'):
+            coin_data['spread'] = coin_data['ask_price'] - coin_data['bid_price']
+            coin_data['spread_pct'] = round((coin_data['spread'] / last['close']) * 100, 4)
+        
+        # --- TREND GENERAL ---
+        ema_stack = sum([
+            coin_data.get('ema_20_gt_50', False),
+            coin_data.get('ema_50_gt_100', False),
+            coin_data.get('ema_100_gt_200', False),
+        ])
+        if ema_stack == 3:
+            coin_data['trend_structure'] = 'STRONG_BULLISH'
+        elif ema_stack == 2:
+            coin_data['trend_structure'] = 'BULLISH'
+        elif ema_stack == 1:
+            coin_data['trend_structure'] = 'NEUTRAL'
+        else:
+            coin_data['trend_structure'] = 'BEARISH'
+        
+        # --- BBANDS POSITION ---
+        coin_data['bb_position'] = round(last.get('bb_percent_b', 0.5) * 100, 1)  # 0-100%
+    
+    except Exception as e:
+        logger.warning(f"Error calculating advanced indicators for {symbol}: {e}")
+    
+    # Calcular performance_score (compatibilidad con template y API)
+    # Score = price_change_percent * (1 + volatility_factor * 0.5)
+    # donde volatility_factor = min(volatility / 10, 1.0)
+    try:
+        pct_change = coin_data.get('price_change_percent', 0)
+        vol = coin_data.get('volatility_30d', coin_data.get('volatility', 0))
+        volatility_factor = min(vol / 10, 1.0)
+        coin_data['performance_score'] = round(pct_change * (1 + volatility_factor * 0.5), 2)
+    except Exception:
+        coin_data['performance_score'] = 0.0
+    
+    # Calcular rankings (percentiles) respecto a todos los pares USDT
+    # Optimizado: solo top 100 por volumen para volatilidad, resto usa 0
+    try:
+        # Obtener todos los tickers USDT válidos
+        all_tickers = fetch_all_usdt_tickers(client)
+        valid_all = [d for d in all_tickers if not d.get('error') and d['last_price'] > 0 and d['quote_volume'] > 100000]
+        
+        # Top 100 por volumen para calcular volatilidad (resto volatilidad = 0)
+        top_by_volume = sorted(valid_all, key=lambda x: x['quote_volume'], reverse=True)[:100]
+        
+        # Calcular volatilidad solo para top 100 (usando cache)
+        for item in top_by_volume:
+            vol_cache_key = f'vol_{item["symbol"]}'
+            vol = cache.get(vol_cache_key)
+            if vol is None:
+                try:
+                    klines = fetch_klines(client, item['symbol'], '1d', 30)
+                    vol = calculate_volatility(klines) if klines else 0
+                    cache.set(vol_cache_key, vol, 60)
+                except Exception:
+                    vol = 0
+            item['volatility'] = vol
+        
+        # Para el resto, volatilidad = 0
+        for item in valid_all:
+            if 'volatility' not in item:
+                item['volatility'] = 0.0
+        
+        # Calcular performance_score para todos
+        for item in valid_all:
+            vol = item.get('volatility', 0)
+            volatility_factor = min(vol / 10, 1.0)
+            item['performance_score'] = item['price_change_percent'] * (1 + volatility_factor * 0.5)
+            item['volatility_score'] = item.get('volatility', 0)
+        
+        # Rankings
+        by_perf = sorted(valid_all, key=lambda x: x['performance_score'], reverse=True)
+        by_vol = sorted(valid_all, key=lambda x: x['volatility_score'], reverse=True)
+        by_pct = sorted(valid_all, key=lambda x: x['price_change_percent'], reverse=True)
+        by_volm = sorted(valid_all, key=lambda x: x['quote_volume'], reverse=True)
+        
+        total = len(valid_all)
+        perf_rank = next((i + 1 for i, item in enumerate(by_perf) if item['symbol'] == symbol), None)
+        vol_rank = next((i + 1 for i, item in enumerate(by_vol) if item['symbol'] == symbol), None)
+        pct_rank = next((i + 1 for i, item in enumerate(by_pct) if item['symbol'] == symbol), None)
+        volm_rank = next((i + 1 for i, item in enumerate(by_volm) if item['symbol'] == symbol), None)
+        
+        if perf_rank and total > 0:
+            coin_data['performance_rank'] = perf_rank
+            coin_data['percentile_performance'] = round((1 - (perf_rank - 1) / total) * 100, 1)
+        if vol_rank and total > 0:
+            coin_data['volatility_rank'] = vol_rank
+            coin_data['percentile_volatility'] = round((1 - (vol_rank - 1) / total) * 100, 1)
+        if pct_rank and total > 0:
+            coin_data['price_change_rank'] = pct_rank
+            coin_data['percentile_price_change'] = round((1 - (pct_rank - 1) / total) * 100, 1)
+        if volm_rank and total > 0:
+            coin_data['volume_rank'] = volm_rank
+            coin_data['percentile_volume'] = round((1 - (volm_rank - 1) / total) * 100, 1)
+    except Exception as e:
+        logger.warning(f"Error calculating rankings for {symbol}: {e}")
+    
+    # Volatilidad legacy (compatibilidad)
     vol_cache_key = f'vol_{symbol}'
     volatility = cache.get(vol_cache_key)
-    
     if volatility is None:
         try:
-            klines = fetch_klines(client, symbol, '1d', 20)  # Reducido a 20
-            volatility = calculate_volatility(klines)
+            vol_klines = fetch_klines(client, symbol, '1d', 30)
+            volatility = calculate_volatility(vol_klines) if vol_klines else 0
             cache.set(vol_cache_key, volatility, 60)
         except Exception:
-            volatility = 0.0
+            volatility = 0
     
     coin_data['volatility'] = volatility
     
-    # Calcular indicadores técnicos básicos desde klines
-    try:
-        klines = fetch_klines(client, symbol, '1d', 20)
-        if klines:
-            closes = [k['close'] for k in klines]
-            highs = [k['high'] for k in klines]
-            lows = [k['low'] for k in klines]
-            
-            # RSI (14)
-            if len(closes) >= 15:
-                rsi = _calculate_rsi_simple(closes)
-                coin_data['rsi'] = round(rsi, 1)
-            
-            # Tendencia (últimos 10 vs primeros 10)
-            if len(closes) >= 10:
-                trend = 'Bullish' if closes[-1] > closes[0] else 'Bearish'
-                coin_data['trend'] = trend
-            
-            # Soporte/Resistencia (20 días)
-            if highs and lows:
-                coin_data['resistance'] = max(highs)
-                coin_data['support'] = min(lows)
-    except Exception:
-        pass
-    
-    # Calcular spread
+    # Spread legacy
     if coin_data.get('ask_price') and coin_data.get('bid_price'):
         coin_data['spread'] = coin_data['ask_price'] - coin_data['bid_price']
     
-    return coin_data
+    return _serialize_for_json(coin_data)
+
+
+def _serialize_for_json(data: Dict) -> Dict:
+    """Convierte valores booleanos a strings para serialización JSON."""
+    result = {}
+    for key, value in data.items():
+        if isinstance(value, (bool, np.bool_)):
+            # Handle both Python bool and numpy.bool_
+            result[key] = 'true' if value else 'false'
+        elif isinstance(value, (dict,)):
+            result[key] = _serialize_for_json(value)
+        elif isinstance(value, (list,)):
+            result[key] = [_serialize_for_json(item) if isinstance(item, dict) else item for item in value]
+        else:
+            result[key] = value
+    return result
 
 
 def _calculate_rsi_simple(closes: List[float], period: int = 14) -> float:
@@ -662,11 +956,11 @@ class SearchView(View):
         }
 
         if query:
-            coin = search_coin(client, query)
+            coin = search_coin_fast(client, query)
             if coin:
                 context['coin'] = coin
             else:
-                context['error'] = f'No se encontró la criptomoneda "{query}". Verifica el símbolo (ej: BTC, ETH, SOL) o nombre.'
+                context['error'] = f'No se encontr� la criptomoneda "{query}". Verifica el s�mbolo (ej: BTC, ETH, SOL) o nombre.'
 
         return render(request, self.template_name, context)
 
@@ -725,8 +1019,8 @@ class DashboardView(View):
 
 class TopFlopView(View):
     """
-    Vista para mostrar las 10 mejores y 10 peores criptomonedas
-    basadas en performance y volatilidad de TODOS los pares USDT.
+    Vista para mostrar las 10 mejores criptomonedas con mayor potencial de compra
+    basadas en el Índice de Confluencia Multicriterio (Tendencia + Volumen + RSI).
     """
 
     template_name = 'top_flop.html'
@@ -737,9 +1031,9 @@ class TopFlopView(View):
         analysis = analyze_all_usdt_performance(client)
 
         context = {
-            'page_title': 'Top & Flop - Rendimiento de Mercado',
+            'page_title': 'Top Potencial de Compra - Confluencia Multicriterio',
+            'top_potential': analysis['top_potential'],
             'top_performers': analysis['top_performers'],
-            'flop_performers': analysis['flop_performers'],
             'top_volatile': analysis['top_volatile'],
             'total_analyzed': analysis['total_analyzed'],
             'timestamp': self._get_current_timestamp(),
@@ -834,6 +1128,7 @@ class ApiTopFlopView(View):
     """
     Endpoint API para obtener datos de top/flop en formato JSON.
     Analiza TODOS los pares USDT disponibles en Binance.
+    Retorna el nuevo ranking de potencial de compra basado en confluencia.
     """
 
     def get(self, request: HttpRequest) -> JsonResponse:
@@ -843,8 +1138,8 @@ class ApiTopFlopView(View):
             analysis = analyze_all_usdt_performance(client)
             return JsonResponse({
                 'success': True,
+                'top_potential': analysis['top_potential'],
                 'top_performers': analysis['top_performers'],
-                'flop_performers': analysis['flop_performers'],
                 'top_volatile': analysis['top_volatile'],
                 'total_analyzed': analysis['total_analyzed'],
                 'timestamp': self._get_current_timestamp(),
@@ -877,7 +1172,7 @@ class ApiSearchView(View):
         client = get_binance_client()
 
         try:
-            coin = search_coin(client, query)
+            coin = search_coin_fast(client, query)
             if coin:
                 return JsonResponse({
                     'success': True,

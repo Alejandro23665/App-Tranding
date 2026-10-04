@@ -1,0 +1,1 @@
+# Módulo de análisis técnico para Crypto Monitor

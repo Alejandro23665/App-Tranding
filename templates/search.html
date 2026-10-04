@@ -448,6 +448,14 @@
                                         <p class="text-xs text-muted-500">Spread</p>
                                         <p class="font-mono text-white">{{ coin.spread|floatformat:8 }}</p>
                                     </div>
+                                    <div>
+                                        <p class="text-xs text-muted-500">Performance Score</p>
+                                        <p class="font-mono text-white text-xl {% if coin.performance_score and coin.performance_score > 0 %}text-brand-400{% elif coin.performance_score and coin.performance_score < 0 %}text-danger-400{% else %}text-muted-400{% endif %}">{{ coin.performance_score|floatformat:2|default:"--" }}</p>
+                                    </div>
+                                    <div>
+                                        <p class="text-xs text-muted-500">Volatility (30d)</p>
+                                        <p class="font-mono text-white text-xl text-warning-400">{{ coin.volatility_30d|floatformat:2|default:"--" }}%</p>
+                                    </div>
                                 </div>
                             </dl>
                         </div>
@@ -487,6 +495,303 @@
                         </div>
                     </div>
 
+                    <!-- Technical Indicators Detail -->
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+                        <!-- EMAs -->
+                        <div class="glass-strong rounded-xl p-5 border border-white/5">
+                            <h3 class="font-semibold text-white mb-4 flex items-center gap-2">
+                                <i class="fas fa-chart-line text-blue-400"></i>
+                                Medias Móviles Exponenciales (EMA)
+                            </h3>
+                            <div class="space-y-3">
+                                <div class="grid grid-cols-4 gap-3">
+                                    <div class="glass rounded-lg p-3 border border-white/5 {% if coin.ema_20 and coin.price_gt_ema20 %}border-brand-500/30{% elif coin.ema_20 and not coin.price_gt_ema20 %}border-danger-500/30{% endif %}">
+                                        <p class="text-xs text-muted-500 uppercase tracking-wider mb-1">EMA 20</p>
+                                        <p class="font-mono text-white text-lg">{{ coin.ema_20|floatformat:4|default:"--" }}</p>
+                                        <p class="text-xs {% if coin.dist_ema20_pct and coin.dist_ema20_pct > 0 %}text-brand-400{% elif coin.dist_ema20_pct and coin.dist_ema20_pct < 0 %}text-danger-400{% else %}text-muted-400{% endif %} font-mono">
+                                            {% if coin.dist_ema20_pct is not none %}{{ coin.dist_ema20_pct|floatformat:2 }}%{% else %}--{% endif %}
+                                        </p>
+                                    </div>
+                                    <div class="glass rounded-lg p-3 border border-white/5 {% if coin.ema_50 and coin.price_gt_ema50 %}border-brand-500/30{% elif coin.ema_50 and not coin.price_gt_ema50 %}border-danger-500/30{% endif %}">
+                                        <p class="text-xs text-muted-500 uppercase tracking-wider mb-1">EMA 50</p>
+                                        <p class="font-mono text-white text-lg">{{ coin.ema_50|floatformat:4|default:"--" }}</p>
+                                        <p class="text-xs {% if coin.dist_ema50_pct and coin.dist_ema50_pct > 0 %}text-brand-400{% elif coin.dist_ema50_pct and coin.dist_ema50_pct < 0 %}text-danger-400{% else %}text-muted-400{% endif %} font-mono">
+                                            {% if coin.dist_ema50_pct is not none %}{{ coin.dist_ema50_pct|floatformat:2 }}%{% else %}--{% endif %}
+                                        </p>
+                                    </div>
+                                    <div class="glass rounded-lg p-3 border border-white/5">
+                                        <p class="text-xs text-muted-500 uppercase tracking-wider mb-1">EMA 100</p>
+                                        <p class="font-mono text-white text-lg">{{ coin.ema_100|floatformat:4|default:"--" }}</p>
+                                        <p class="text-xs {% if coin.dist_ema100_pct and coin.dist_ema100_pct > 0 %}text-brand-400{% elif coin.dist_ema100_pct and coin.dist_ema100_pct < 0 %}text-danger-400{% else %}text-muted-400{% endif %} font-mono">
+                                            {% if coin.dist_ema100_pct is not none %}{{ coin.dist_ema100_pct|floatformat:2 }}%{% else %}--{% endif %}
+                                        </p>
+                                    </div>
+                                    <div class="glass rounded-lg p-3 border border-white/5">
+                                        <p class="text-xs text-muted-500 uppercase tracking-wider mb-1">EMA 200</p>
+                                        <p class="font-mono text-white text-lg">{{ coin.ema_200|floatformat:4|default:"--" }}</p>
+                                        <p class="text-xs {% if coin.dist_ema200_pct and coin.dist_ema200_pct > 0 %}text-brand-400{% elif coin.dist_ema200_pct and coin.dist_ema200_pct < 0 %}text-danger-400{% else %}text-muted-400{% endif %} font-mono">
+                                            {% if coin.dist_ema200_pct is not none %}{{ coin.dist_ema200_pct|floatformat:2 }}%{% else %}--{% endif %}
+                                        </p>
+                                    </div>
+                                </div>
+                                <div class="grid grid-cols-3 gap-3 mt-4 pt-4 border-t border-white/5">
+                                    <div class="glass rounded-lg p-3 border border-white/5 {% if coin.ema_20_gt_50 %}border-brand-500/30{% else %}border-danger-500/30{% endif %}">
+                                        <p class="text-xs text-muted-500 mb-1">EMA 20 > 50</p>
+                                        <p class="font-bold text-lg {% if coin.ema_20_gt_50 %}text-brand-400{% else %}text-danger-400{% endif %}">
+                                            {% if coin.ema_20_gt_50 %}✓ ALCISTA{% else %}✗ BAJISTA{% endif %}
+                                        </p>
+                                    </div>
+                                    <div class="glass rounded-lg p-3 border border-white/5 {% if coin.ema_50_gt_100 %}border-brand-500/30{% else %}border-danger-500/30{% endif %}">
+                                        <p class="text-xs text-muted-500 mb-1">EMA 50 > 100</p>
+                                        <p class="font-bold text-lg {% if coin.ema_50_gt_100 %}text-brand-400{% else %}text-danger-400{% endif %}">
+                                            {% if coin.ema_50_gt_100 %}✓{% else %}✗{% endif %}
+                                        </p>
+                                    </div>
+                                    <div class="glass rounded-lg p-3 border border-white/5 {% if coin.ema_100_gt_200 %}border-brand-500/30{% else %}border-danger-500/30{% endif %}">
+                                        <p class="text-xs text-muted-500 mb-1">EMA 100 > 200</p>
+                                        <p class="font-bold text-lg {% if coin.ema_100_gt_200 %}text-brand-400{% else %}text-danger-400{% endif %}">
+                                            {% if coin.ema_100_gt_200 %}✓{% else %}✗{% endif %}
+                                        </p>
+                                    </div>
+                                </div>
+                                <div class="mt-4 p-3 glass rounded-lg border border-white/5">
+                                    <p class="text-xs text-muted-500 mb-1">Estructura de Tendencia</p>
+                                    <p class="font-bold text-lg {% if coin.trend_structure == 'STRONG_BULLISH' %}text-brand-400{% elif coin.trend_structure == 'BULLISH' %}text-brand-400{% elif coin.trend_structure == 'NEUTRAL' %}text-warning-400{% else %}text-danger-400{% endif %}">
+                                        {{ coin.trend_structure|default:"--" }}
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Bollinger Bands -->
+                        <div class="glass-strong rounded-xl p-5 border border-white/5">
+                            <h3 class="font-semibold text-white mb-4 flex items-center gap-2">
+                                <i class="fas fa-expand-arrows-alt text-purple-400"></i>
+                                Bandas de Bollinger (20, 2σ)
+                            </h3>
+                            <div class="space-y-3">
+                                <div class="grid grid-cols-3 gap-3">
+                                    <div class="glass rounded-lg p-3 border border-white/5">
+                                        <p class="text-xs text-muted-500 uppercase tracking-wider mb-1">Upper (2σ)</p>
+                                        <p class="font-mono text-white text-lg">{{ coin.bb_upper|floatformat:4|default:"--" }}</p>
+                                    </div>
+                                    <div class="glass rounded-lg p-3 border border-white/5">
+                                        <p class="text-xs text-muted-500 uppercase tracking-wider mb-1">Middle (SMA 20)</p>
+                                        <p class="font-mono text-white text-lg">{{ coin.bb_middle|floatformat:4|default:"--" }}</p>
+                                    </div>
+                                    <div class="glass rounded-lg p-3 border border-white/5">
+                                        <p class="text-xs text-muted-500 uppercase tracking-wider mb-1">Lower (2σ)</p>
+                                        <p class="font-mono text-white text-lg">{{ coin.bb_lower|floatformat:4|default:"--" }}</p>
+                                    </div>
+                                </div>
+                                <div class="grid grid-cols-3 gap-3">
+                                    <div class="glass rounded-lg p-3 border border-white/5 {% if coin.bb_signal == 'ABOVE_UPPER' %}border-danger-500/30{% elif coin.bb_signal in 'NEAR_UPPER,UPPER_HALF' %}border-warning-500/30{% elif coin.bb_signal in 'NEAR_LOWER,BELOW_LOWER' %}border-brand-500/30{% else %}border-muted-500/30{% endif %}">
+                                        <p class="text-xs text-muted-500 mb-1">%B Position</p>
+                                        <p class="font-bold text-white text-2xl">{{ coin.bb_position|floatformat:1|default:"--" }}%</p>
+                                        <p class="text-xs font-semibold {% if coin.bb_signal == 'ABOVE_UPPER' %}text-danger-400{% elif coin.bb_signal in 'NEAR_UPPER,UPPER_HALF' %}text-warning-400{% elif coin.bb_signal in 'NEAR_LOWER,BELOW_LOWER' %}text-brand-400{% else %}text-muted-400{% endif %}">
+                                            {{ coin.bb_signal|default:"--" }}
+                                        </p>
+                                    </div>
+                                    <div class="glass rounded-lg p-3 border border-white/5 {% if coin.bb_bandwidth_signal == 'HIGH_VOL' %}border-danger-500/30{% elif coin.bb_bandwidth_signal == 'LOW_VOL' %}border-brand-500/30{% endif %}">
+                                        <p class="text-xs text-muted-500 mb-1">Bandwidth</p>
+                                        <p class="font-mono text-white text-lg">{{ coin.bb_bandwidth|floatformat:4|default:"--" }}</p>
+                                        <p class="text-xs font-semibold {% if coin.bb_bandwidth_signal == 'HIGH_VOL' %}text-danger-400{% elif coin.bb_bandwidth_signal == 'LOW_VOL' %}text-brand-400{% else %}text-muted-400{% endif %}">
+                                            {{ coin.bb_bandwidth_signal|default:"--" }}
+                                        </p>
+                                    </div>
+                                    <div class="glass rounded-lg p-3 border border-white/5 {% if coin.bb_signal in 'ABOVE_UPPER,NEAR_UPPER' %}border-danger-500/30{% elif coin.bb_signal in 'NEAR_LOWER,BELOW_LOWER' %}border-brand-500/30{% else %}border-muted-500/30{% endif %}">
+                                        <p class="text-xs text-muted-500 mb-1">Señal BB</p>
+                                        <p class="font-bold text-lg {% if coin.bb_signal == 'ABOVE_UPPER' %}text-danger-400{% elif coin.bb_signal in 'NEAR_UPPER,UPPER_HALF' %}text-warning-400{% elif coin.bb_signal in 'NEAR_LOWER,BELOW_LOWER' %}text-brand-400{% else %}text-muted-400{% endif %}">
+                                            {{ coin.bb_signal|default:"--" }}
+                                        </p>
+                                    </div>
+                                </div>
+                                <div class="grid grid-cols-3 gap-3 mt-4 pt-4 border-t border-white/5">
+                                    <div class="glass rounded-lg p-3 border border-white/5">
+                                        <p class="text-xs text-muted-500 mb-1">Upper Band</p>
+                                        <p class="font-mono text-white">{{ coin.bb_upper|floatformat:4|default:"--" }}</p>
+                                    </div>
+                                    <div class="glass rounded-lg p-3 border border-white/5">
+                                        <p class="text-xs text-muted-500 mb-1">Middle (SMA20)</p>
+                                        <p class="font-mono text-white">{{ coin.bb_middle|floatformat:4|default:"--" }}</p>
+                                    </div>
+                                    <div class="glass rounded-lg p-3 border border-white/5">
+                                        <p class="text-xs text-muted-500 mb-1">Lower Band</p>
+                                        <p class="font-mono text-white">{{ coin.bb_lower|floatformat:4|default:"--" }}</p>
+                                    </div>
+                                </div>
+                                <div class="mt-4 p-3 glass rounded-lg border border-white/5">
+                                    <p class="text-xs text-muted-500 mb-1">Interpretación %B: 0-20% (Sobreventa), 20-50% (Inferior), 50-80% (Superior), 80-100% (Sobrecompra), >100% (Breakout), <0% (Breakdown)</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Volume Profile -->
+                        <div class="glass-strong rounded-xl p-5 border border-white/5 lg:col-span-2">
+                            <h3 class="font-semibold text-white mb-4 flex items-center gap-2">
+                                <i class="fas fa-chart-bar text-green-400"></i>
+                                Perfil de Volumen (20 períodos)
+                            </h3>
+                            <div class="space-y-3">
+                                <div class="grid grid-cols-4 gap-3">
+                                    <div class="glass rounded-lg p-3 border border-white/5 {% if coin.rvol_signal == 'VERY_HIGH' %}border-brand-500/30{% elif coin.rvol_signal in 'HIGH,ELEVATED' %}border-warning-500/30{% elif coin.rvol_signal == 'LOW' %}border-danger-500/30{% endif %}">
+                                        <p class="text-xs text-muted-500 uppercase tracking-wider mb-1">RVOL (20)</p>
+                                        <p class="font-bold text-white text-2xl">{{ coin.rvol_20|floatformat:2|default:"--" }}</p>
+                                        <p class="text-xs font-semibold {% if coin.rvol_signal == 'VERY_HIGH' %}text-brand-400{% elif coin.rvol_signal in 'HIGH,ELEVATED' %}text-warning-400{% elif coin.rvol_signal == 'LOW' %}text-danger-400{% else %}text-muted-400{% endif %}">
+                                            {{ coin.rvol_signal|default:"--" }}
+                                        </p>
+                                    </div>
+                                    <div class="glass rounded-lg p-3 border border-white/5 {% if coin.volume_trend == 'RISING' %}border-brand-500/30{% elif coin.volume_trend == 'FALLING' %}border-danger-500/30{% endif %}">
+                                        <p class="text-xs text-muted-500 uppercase tracking-wider mb-1">Tendencia Vol</p>
+                                        <p class="font-bold text-lg {% if coin.volume_trend == 'RISING' %}text-brand-400{% elif coin.volume_trend == 'FALLING' %}text-danger-400{% else %}text-muted-400{% endif %}">
+                                            {{ coin.volume_trend|default:"--" }}
+                                        </p>
+                                    </div>
+                                    <div class="glass rounded-lg p-3 border border-white/5 {% if coin.volume_ratio_20 and coin.volume_ratio_20 > 1.5 %}border-brand-500/30{% elif coin.volume_ratio_20 and coin.volume_ratio_20 < 0.7 %}border-danger-500/30{% endif %}">
+                                        <p class="text-xs text-muted-500 uppercase tracking-wider mb-1">Ratio Up/Down</p>
+                                        <p class="font-bold text-lg {% if coin.volume_ratio_20 and coin.volume_ratio_20 > 1 %}text-brand-400{% elif coin.volume_ratio_20 and coin.volume_ratio_20 < 1 %}text-danger-400{% else %}text-muted-400{% endif %} font-mono">
+                                            {{ coin.volume_ratio_20|floatformat:2|default:"--" }}
+                                        </p>
+                                    </div>
+                                    <div class="glass rounded-lg p-3 border border-white/5 {% if coin.vwap_signal == 'ABOVE_VWAP' %}border-brand-500/30{% elif coin.vwap_signal == 'BELOW_VWAP' %}border-danger-500/30{% endif %}">
+                                        <p class="text-xs text-muted-500 uppercase tracking-wider mb-1">VWAP (20)</p>
+                                        <p class="font-mono text-white text-lg">{{ coin.vwap_20|floatformat:4|default:"--" }}</p>
+                                        <p class="text-xs font-semibold {% if coin.vwap_signal == 'ABOVE_VWAP' %}text-brand-400{% elif coin.vwap_signal == 'BELOW_VWAP' %}text-danger-400{% else %}text-muted-400{% endif %}">
+                                            {{ coin.vwap_signal|default:"--" }}
+                                        </p>
+                                    </div>
+                                </div>
+                                <div class="grid grid-cols-4 gap-3 mt-4 pt-4 border-t border-white/5">
+                                    <div class="glass rounded-lg p-3 border border-white/5">
+                                        <p class="text-xs text-muted-500 mb-1">Vol SMA 20</p>
+                                        <p class="font-mono text-white">{{ coin.volume_sma_20|floatformat:0|default:"--" }}</p>
+                                    </div>
+                                    <div class="glass rounded-lg p-3 border border-white/5">
+                                        <p class="text-xs text-muted-500 mb-1">Vol EMA 20</p>
+                                        <p class="font-mono text-white">{{ coin.volume_ema_20|floatformat:0|default:"--" }}</p>
+                                    </div>
+                                    <div class="glass rounded-lg p-3 border border-white/5">
+                                        <p class="text-xs text-muted-500 mb-1">Up Volume</p>
+                                        <p class="font-mono text-brand-400">{{ coin.up_volume_20|floatformat:0|default:"--" }}</p>
+                                    </div>
+                                    <div class="glass rounded-lg p-3 border border-white/5">
+                                        <p class="text-xs text-muted-500 mb-1">Down Volume</p>
+                                        <p class="font-mono text-danger-400">{{ coin.down_volume_20|floatformat:0|default:"--" }}</p>
+                                    </div>
+                                </div>
+                                <div class="mt-4 p-3 glass rounded-lg border border-white/5">
+                                    <p class="text-xs text-muted-500 mb-1">Interpretación: RVOL >1.5 = interés institucional; Ratio Up/Down >1 = presión compradora; Precio > VWAP = alcista intradía</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Support/Resistance & Distance -->
+                        <div class="glass-strong rounded-xl p-5 border border-white/5">
+                            <h3 class="font-semibold text-white mb-4 flex items-center gap-2">
+                                <i class="fas fa-anchor text-orange-400"></i>
+                                Soporte / Resistencia & Distancias
+                            </h3>
+                            <div class="space-y-3">
+                                <div class="grid grid-cols-2 gap-3">
+                                    <div class="glass rounded-lg p-4 border border-white/5 {% if coin.resistance_20d %}border-warning-500/30{% endif %}">
+                                        <p class="text-xs text-muted-500 uppercase tracking-wider mb-1">Resistencia (20d)</p>
+                                        <p class="font-mono text-white text-xl">{{ coin.resistance_20d|floatformat:4|default:"--" }}</p>
+                                        {% if coin.dist_resistance_pct is not none %}
+                                        <p class="text-xs {% if coin.dist_resistance_pct < 5 %}text-warning-400{% elif coin.dist_resistance_pct < 15 %}text-muted-400{% else %}text-muted-500{% endif %} font-mono mt-1">
+                                            {{ coin.dist_resistance_pct|floatformat:2 }}% arriba
+                                        </p>
+                                        {% endif %}
+                                    </div>
+                                    <div class="glass rounded-lg p-4 border border-white/5 {% if coin.support_20d %}border-brand-500/30{% endif %}">
+                                        <p class="text-xs text-muted-500 uppercase tracking-wider mb-1">Soporte (20d)</p>
+                                        <p class="font-mono text-white text-xl">{{ coin.support_20d|floatformat:4|default:"--" }}</p>
+                                        {% if coin.dist_support_pct is not none %}
+                                        <p class="text-xs {% if coin.dist_support_pct < 5 %}text-brand-400{% elif coin.dist_support_pct < 15 %}text-muted-400{% else %}text-muted-500{% endif %} font-mono mt-1">
+                                            {{ coin.dist_support_pct|floatformat:2 }}% abajo
+                                        </p>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                                <div class="grid grid-cols-2 gap-3 mt-4 pt-4 border-t border-white/5">
+                                    <div class="glass rounded-lg p-3 border border-white/5">
+                                        <p class="text-xs text-muted-500 mb-1">Rango 20d</p>
+                                        <p class="font-bold text-white text-lg font-mono">{{ coin.range_20d_pct|floatformat:2|default:"--" }}%</p>
+                                    </div>
+                                    <div class="glass rounded-lg p-3 border border-white/5">
+                                        <p class="text-xs text-muted-500 mb-1">Volatilidad 30d</p>
+                                        <p class="font-bold text-white text-lg font-mono text-warning-400">{{ coin.volatility_30d|floatformat:2|default:"--" }}%</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Market Structure & Spread -->
+                        <div class="glass-strong rounded-xl p-5 border border-white/5">
+                            <h3 class="font-semibold text-white mb-4 flex items-center gap-2">
+                                <i class="fas fa-gavel text-teal-400"></i>
+                                Estructura de Mercado & Spread
+                            </h3>
+                            <div class="space-y-3">
+                                <div class="grid grid-cols-4 gap-3">
+                                    <div class="glass rounded-lg p-3 border border-white/5 {% if coin.trend_structure in 'STRONG_BULLISH,BULLISH' %}border-brand-500/30{% elif coin.trend_structure in 'NEUTRAL' %}border-warning-500/30{% else %}border-danger-500/30{% endif %}">
+                                        <p class="text-xs text-muted-500 uppercase tracking-wider mb-1">Estructura</p>
+                                        <p class="font-bold text-lg {% if coin.trend_structure == 'STRONG_BULLISH' %}text-brand-400{% elif coin.trend_structure == 'BULLISH' %}text-brand-400{% elif coin.trend_structure == 'NEUTRAL' %}text-warning-400{% else %}text-danger-400{% endif %}">
+                                            {{ coin.trend_structure|default:"--" }}
+                                        </p>
+                                    </div>
+                                    <div class="glass rounded-lg p-3 border border-white/5 {% if coin.rsi_signal in 'OVERBOUGHT' %}border-danger-500/30{% elif coin.rsi_signal in 'OVERSOLD,OVERSOLD_BOUNCE' %}border-brand-500/30{% elif coin.rsi_signal in 'BULLISH,NEUTRAL_BULLISH' %}border-brand-500/30{% else %}border-muted-500/30{% endif %}">
+                                        <p class="text-xs text-muted-500 uppercase tracking-wider mb-1">RSI 14</p>
+                                        <p class="font-bold text-xl text-white">{{ coin.rsi_14|floatformat:1|default:"--" }}</p>
+                                        <p class="text-xs font-semibold {% if coin.rsi_signal == 'OVERBOUGHT' %}text-danger-400{% elif coin.rsi_signal in 'OVERSOLD,OVERSOLD_BOUNCE' %}text-brand-400{% elif coin.rsi_signal in 'BULLISH,NEUTRAL_BULLISH' %}text-brand-400{% else %}text-muted-400{% endif %}">
+                                            {{ coin.rsi_signal|default:"--" }} ({{ coin.rsi_trend|default:"--" }})
+                                        </p>
+                                    </div>
+                                    <div class="glass rounded-lg p-3 border border-white/5 {% if coin.bb_signal in 'ABOVE_UPPER,NEAR_UPPER' %}border-danger-500/30{% elif coin.bb_signal in 'NEAR_LOWER,BELOW_LOWER' %}border-brand-500/30{% else %}border-muted-500/30{% endif %}">
+                                        <p class="text-xs text-muted-500 uppercase tracking-wider mb-1">BB Signal</p>
+                                        <p class="font-bold text-lg {% if coin.bb_signal == 'ABOVE_UPPER' %}text-danger-400{% elif coin.bb_signal in 'NEAR_UPPER,UPPER_HALF' %}text-warning-400{% elif coin.bb_signal in 'NEAR_LOWER,BELOW_LOWER' %}text-brand-400{% else %}text-muted-400{% endif %}">
+                                            {{ coin.bb_signal|default:"--" }}
+                                        </p>
+                                    </div>
+                                    <div class="glass rounded-lg p-3 border border-white/5 {% if coin.vwap_signal == 'ABOVE_VWAP' %}border-brand-500/30{% elif coin.vwap_signal == 'BELOW_VWAP' %}border-danger-500/30{% endif %}">
+                                        <p class="text-xs text-muted-500 uppercase tracking-wider mb-1">VWAP</p>
+                                        <p class="font-bold text-lg {% if coin.vwap_signal == 'ABOVE_VWAP' %}text-brand-400{% elif coin.vwap_signal == 'BELOW_VWAP' %}text-danger-400{% else %}text-muted-400{% endif %} font-mono">
+                                            {{ coin.vwap_20|floatformat:4|default:"--" }}
+                                        </p>
+                                    </div>
+                                </div>
+                                <div class="grid grid-cols-4 gap-3 mt-4 pt-4 border-t border-white/5">
+                                    <div class="glass rounded-lg p-3 border border-white/5 {% if coin.rvol_signal in 'VERY_HIGH,HIGH' %}border-brand-500/30{% elif coin.rvol_signal == 'LOW' %}border-danger-500/30{% endif %}">
+                                        <p class="text-xs text-muted-500 mb-1">RVOL 20</p>
+                                        <p class="font-bold text-xl {% if coin.rvol_signal in 'VERY_HIGH,HIGH' %}text-brand-400{% elif coin.rvol_signal == 'LOW' %}text-danger-400{% else %}text-muted-400{% endif %} font-mono">
+                                            {{ coin.rvol_20|floatformat:2|default:"--" }}
+                                        </p>
+                                        <p class="text-xs font-semibold {% if coin.rvol_signal in 'VERY_HIGH,HIGH' %}text-brand-400{% elif coin.rvol_signal == 'LOW' %}text-danger-400{% else %}text-muted-400{% endif %}">
+                                            {{ coin.rvol_signal|default:"--" }}
+                                        </p>
+                                    </div>
+                                    <div class="glass rounded-lg p-3 border border-white/5 {% if coin.volume_ratio_20 and coin.volume_ratio_20 > 1 %}border-brand-500/30{% elif coin.volume_ratio_20 and coin.volume_ratio_20 < 1 %}border-danger-500/30{% endif %}">
+                                        <p class="text-xs text-muted-500 mb-1">Vol Ratio</p>
+                                        <p class="font-bold text-xl {% if coin.volume_ratio_20 and coin.volume_ratio_20 > 1 %}text-brand-400{% elif coin.volume_ratio_20 and coin.volume_ratio_20 < 1 %}text-danger-400{% else %}text-muted-400{% endif %} font-mono">
+                                            {{ coin.volume_ratio_20|floatformat:2|default:"--" }}
+                                        </p>
+                                    </div>
+                                    <div class="glass rounded-lg p-3 border border-white/5 {% if coin.vwap_signal == 'ABOVE_VWAP' %}border-brand-500/30{% elif coin.vwap_signal == 'BELOW_VWAP' %}border-danger-500/30{% endif %}">
+                                        <p class="text-xs text-muted-500 mb-1">VWAP</p>
+                                        <p class="font-bold text-lg {% if coin.vwap_signal == 'ABOVE_VWAP' %}text-brand-400{% elif coin.vwap_signal == 'BELOW_VWAP' %}text-danger-400{% else %}text-muted-400{% endif %} font-mono">
+                                            {{ coin.vwap_20|floatformat:4|default:"--" }}
+                                        </p>
+                                    </div>
+                                    <div class="glass rounded-lg p-3 border border-white/5 {% if coin.bb_bandwidth_signal == 'HIGH_VOL' %}border-danger-500/30{% elif coin.bb_bandwidth_signal == 'LOW_VOL' %}border-brand-500/30{% endif %}">
+                                        <p class="text-xs text-muted-500 mb-1">BB Width</p>
+                                        <p class="font-bold text-lg {% if coin.bb_bandwidth_signal == 'HIGH_VOL' %}text-danger-400{% elif coin.bb_bandwidth_signal == 'LOW_VOL' %}text-brand-400{% else %}text-muted-400{% endif %} font-mono">
+                                            {{ coin.bb_bandwidth|floatformat:4|default:"--" }}
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
                     <!-- Action Buttons -->
                     <div class="flex flex-wrap gap-3">
                         <a href="{% url 'monitoring:dashboard' %}" class="px-5 py-2.5 bg-white/5 hover:bg-white/10 text-white font-medium rounded-xl transition-colors border border-white/5 flex items-center gap-2">
@@ -494,7 +799,7 @@
                         </a>
                     </div>
                 </div>
-            </div>
+            </div
         </section>
 
         {% else %}

@@ -35,7 +35,7 @@ DEBUG = os.getenv('DJANGO_DEBUG', 'True').lower() in ('true', '1', 'yes')
 
 # Hosts permitidos para acceder a la aplicación
 # En producción, agregar el dominio real (ej: 'midominio.com', 'www.midominio.com')
-ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', 'localhost,127.0.0.1').split(',')
+ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', 'localhost,127.0.0.1,testserver').split(',')
 
 # =============================================================================
 # APLICACIONES INSTALADAS
